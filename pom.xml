@@ -25,10 +25,6 @@
 			<groupId>net.imagej</groupId>
 			<artifactId>ij</artifactId>
 		</dependency>
-		<dependency>
-			<groupId>net.imagej</groupId>
-			<artifactId>imagej-common</artifactId>
-		</dependency>
 
 		<!-- ImgLib2 dependencies -->
 		<dependency>
@@ -41,14 +37,6 @@
 		</dependency>
 		<dependency>
 			<groupId>net.imglib2</groupId>
-			<artifactId>imglib2-algorithm-gpl</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>net.imglib2</groupId>
-			<artifactId>imglib2-ij</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>net.imglib2</groupId>
 			<artifactId>imglib2-realtransform</artifactId>
 		</dependency>
 
@@ -58,8 +46,8 @@
 			<scope>test</scope>
 		</dependency>
 		<dependency>
-			<groupId>net.imagej</groupId>
-			<artifactId>imagej-ops</artifactId>
+			<groupId>sc.fiji</groupId>
+			<artifactId>TrackMate_</artifactId>
 		</dependency>
 	</dependencies>
 
