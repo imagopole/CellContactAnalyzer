@@ -1,5 +1,6 @@
 package fr.pasteur.trackmate;
 
+import static fiji.plugin.trackmate.detection.DetectorKeys.KEY_TARGET_CHANNEL;
 import static fiji.plugin.trackmate.detection.DetectorKeys.KEY_THRESHOLD;
 import static fiji.plugin.trackmate.io.IOUtils.readDoubleAttribute;
 import static fiji.plugin.trackmate.io.IOUtils.readIntegerAttribute;
@@ -36,7 +37,7 @@ import fiji.plugin.trackmate.util.TMUtils;
 public class CellContactDetectorFactory< T extends RealType< T > & NativeType< T >> implements SpotDetectorFactory< T >
 {
 
-	private static final String INFO_TEXT = "<html>"
+	static final String INFO_TEXT = "<html>"
 			+ "This detector detects cell/cell contacts for cells of two different "
 			+ "species imaged in two different channels. "
 			+ "<p> "
@@ -44,7 +45,7 @@ public class CellContactDetectorFactory< T extends RealType< T > & NativeType< T
 
 	private static final String KEY = "CELL_CONTACT_DETECTOR";
 
-	private static final String NAME = "Cell/cell contact detector";
+	static final String NAME = "Cell/cell contact detector";
 
 	/**
 	 * The key identifying the parameter setting the fisrt target channel for
@@ -149,7 +150,7 @@ public class CellContactDetectorFactory< T extends RealType< T > & NativeType< T
 		}
 
 		final double threshold = ( Double ) settings.get( KEY_THRESHOLD );
-		final CellContactDetector< T > detector = new CellContactDetector< T >( im1, im2, contactSize, sigma, threshold );
+		final CellContactDetector< T > detector = new CellContactDetector< T >( im1, im2, contactSize, sigma, threshold, calibration );
 		detector.setNumThreads( 1 );
 		return detector;
 	}
@@ -157,8 +158,7 @@ public class CellContactDetectorFactory< T extends RealType< T > & NativeType< T
 	@Override
 	public ConfigurationPanel getDetectorConfigurationPanel( final Settings settings, final Model model )
 	{
-		// TODO Auto-generated method stub
-		return null;
+		return new CellContactConfigurationPanel( settings.imp, model );
 	}
 
 	@Override
@@ -179,7 +179,7 @@ public class CellContactDetectorFactory< T extends RealType< T > & NativeType< T
 	public boolean marshall( final Map< String, Object > settings, final Element element )
 	{
 		final StringBuilder errorHolder = new StringBuilder();
-		final List< String > intKeys = Arrays.asList( new String[] { KEY_CHANNEL_1, KEY_CHANNEL_2, KEY_CONTACT_SIZE } );
+		final List< String > intKeys = Arrays.asList( new String[] { KEY_CHANNEL_1, KEY_CHANNEL_2, KEY_CONTACT_SIZE, KEY_TARGET_CHANNEL } );
 		boolean ok = true;
 		for ( final String key : intKeys )
 		{
@@ -208,6 +208,7 @@ public class CellContactDetectorFactory< T extends RealType< T > & NativeType< T
 		boolean ok = true;
 		ok = ok & readIntegerAttribute( element, settings, KEY_CHANNEL_1, errorHolder );
 		ok = ok & readIntegerAttribute( element, settings, KEY_CHANNEL_2, errorHolder );
+		ok = ok & readIntegerAttribute( element, settings, KEY_TARGET_CHANNEL, errorHolder );
 		ok = ok & readIntegerAttribute( element, settings, KEY_CONTACT_SIZE, errorHolder );
 		ok = ok & readDoubleAttribute( element, settings, KEY_SIGMA_FILTER, errorHolder );
 		ok = ok & readDoubleAttribute( element, settings, KEY_THRESHOLD, errorHolder );
@@ -223,11 +224,12 @@ public class CellContactDetectorFactory< T extends RealType< T > & NativeType< T
 	public Map< String, Object > getDefaultSettings()
 	{
 		final Map< String, Object > settings = new HashMap< String, Object >();
-		settings.put( KEY_CHANNEL_1, Integer.valueOf( 1 ) );
-		settings.put( KEY_CHANNEL_2, Integer.valueOf( 2 ) );
+		settings.put( KEY_CHANNEL_1, Integer.valueOf( 2 ) );
+		settings.put( KEY_CHANNEL_2, Integer.valueOf( 3 ) );
 		settings.put( KEY_CONTACT_SIZE, Integer.valueOf( 3 ) );
 		settings.put( KEY_SIGMA_FILTER, Double.valueOf( 1. ) );
-		settings.put( KEY_THRESHOLD, Double.valueOf( 0. ) );
+		settings.put( KEY_THRESHOLD, Double.valueOf( 0.1 ) );
+		settings.put( KEY_TARGET_CHANNEL, Integer.valueOf( 1 ) ); // dummy
 		return settings;
 	}
 
@@ -238,12 +240,14 @@ public class CellContactDetectorFactory< T extends RealType< T > & NativeType< T
 		final StringBuilder errorHolder = new StringBuilder();
 		ok = ok & checkParameter( settings, KEY_CHANNEL_1, Integer.class, errorHolder );
 		ok = ok & checkParameter( settings, KEY_CHANNEL_2, Integer.class, errorHolder );
+		ok = ok & checkParameter( settings, KEY_TARGET_CHANNEL, Integer.class, errorHolder );
 		ok = ok & checkParameter( settings, KEY_CONTACT_SIZE, Integer.class, errorHolder );
 		ok = ok & checkParameter( settings, KEY_SIGMA_FILTER, Double.class, errorHolder );
 		ok = ok & checkParameter( settings, KEY_THRESHOLD, Double.class, errorHolder );
 		final List< String > mandatoryKeys = new ArrayList< String >();
 		mandatoryKeys.add( KEY_CHANNEL_1 );
 		mandatoryKeys.add( KEY_CHANNEL_2 );
+		mandatoryKeys.add( KEY_TARGET_CHANNEL );
 		mandatoryKeys.add( KEY_CONTACT_SIZE );
 		mandatoryKeys.add( KEY_SIGMA_FILTER );
 		mandatoryKeys.add( KEY_THRESHOLD );

@@ -38,13 +38,16 @@ public class CellContactDetector< T extends RealType< T > & NativeType< T >> imp
 
 	private final double threshold;
 
-	public CellContactDetector( final RandomAccessibleInterval< T > im1, final RandomAccessibleInterval< T > im2, final int contactSize, final double sigma, final double threshold )
+	private final double[] calibration;
+
+	public CellContactDetector( final RandomAccessibleInterval< T > im1, final RandomAccessibleInterval< T > im2, final int contactSize, final double sigma, final double threshold, final double[] calibration )
 	{
 		this.im1 = im1;
 		this.im2 = im2;
 		this.contactSize = contactSize;
 		this.sigma = sigma;
 		this.threshold = threshold;
+		this.calibration = calibration;
 	}
 
 	@Override
@@ -88,16 +91,16 @@ public class CellContactDetector< T extends RealType< T > & NativeType< T >> imp
 		final Img< T > out = factory.create( im1, Util.getTypeFromInterval( im1 ) );
 		
 		final ContactImgGenerator< T > generator = new ContactImgGenerator< T >( im1, im2, out, contactSize, sigma );
+		generator.setNumThreads( numThreads );
 		if ( !generator.checkInput() || !generator.process() )
 		{
 			errorMessage = BASE_ERROR_MSG + generator.getErrorMessage();
 			return false;
 		}
-
-		final double radius = 2. * contactSize;
 		
-		final double[] calibration = Util.getArrayFromValue( 1., out.numDimensions() );
+		final double radius = 2.0 * contactSize;
 		final LogDetector< T > detector = new LogDetector< T >( out, out, calibration, radius, threshold, false, false );
+		detector.setNumThreads( numThreads );
 		if ( !detector.checkInput() || !detector.process() )
 		{
 			errorMessage = BASE_ERROR_MSG + detector.getErrorMessage();
