@@ -146,7 +146,7 @@ public class ContactImgGenerator2< T extends RealType< T > & NativeType< T >> im
 		return true;
 	}
 
-	private static final < T extends RealType< T >> T otsuTreshold( final Img< T > src )
+	public static final < T extends RealType< T >> T otsuTreshold( final Img< T > src )
 	{
 
 		final T min = Util.getTypeFromInterval( src ).createVariable();

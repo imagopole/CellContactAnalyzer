@@ -9,9 +9,11 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.algorithm.Algorithm;
 import net.imglib2.algorithm.Benchmark;
 import net.imglib2.algorithm.MultiThreaded;
+import net.imglib2.algorithm.gauss3.Gauss3;
 import net.imglib2.algorithm.morphology.Dilation;
 import net.imglib2.algorithm.morphology.StructuringElements;
 import net.imglib2.algorithm.neighborhood.Shape;
+import net.imglib2.exception.IncompatibleTypeException;
 import net.imglib2.img.Img;
 import net.imglib2.img.ImgFactory;
 import net.imglib2.type.NativeType;
@@ -37,12 +39,15 @@ public class ContactImgGenerator< T extends RealType< T > & NativeType< T >> imp
 
 	private long processingTime;
 
-	public ContactImgGenerator( final RandomAccessibleInterval< T > img1, final RandomAccessibleInterval< T > img2, final IterableInterval< T > out, final int contactSize )
+	private final double sigma;
+
+	public ContactImgGenerator( final RandomAccessibleInterval< T > img1, final RandomAccessibleInterval< T > img2, final IterableInterval< T > out, final int contactSize, final double sigma )
 	{
 		this.img1 = img1;
 		this.img2 = img2;
 		this.out = out;
 		this.contactSize = contactSize;
+		this.sigma = sigma;
 		setNumThreads();
 	}
 
@@ -63,6 +68,11 @@ public class ContactImgGenerator< T extends RealType< T > & NativeType< T >> imp
 			errorMessage = BASE_ERROR_MSG + "The contact size must be greater than 0 (was " + contactSize + ").";
 			return false;
 		}
+		if (sigma <= 0) 
+		{
+			errorMessage = BASE_ERROR_MSG + "The gaussian filter sigma is lower than or equal to 0 (σ = " + sigma + ").";
+			return false;
+		}
 		return true;
 	}
 
@@ -71,15 +81,38 @@ public class ContactImgGenerator< T extends RealType< T > & NativeType< T >> imp
 	{
 		final long start = System.currentTimeMillis();
 
+		final double[] sigmas = Util.getArrayFromValue( sigma, img1.numDimensions() );
 		final ImgFactory< T > factory = Util.getArrayOrCellImgFactory( img1, Util.getTypeFromInterval( img1 ) );
 
 		final List< Shape > strel = StructuringElements.disk( contactSize, img1.numDimensions() );
 
 		final Img< T > target1 = factory.create( img1, Util.getTypeFromInterval( img1 ) );
-		Dilation.dilate( Views.extendZero( img1 ), target1, strel, numThreads );
+		try
+		{
+			Gauss3.gauss( sigmas, Views.extendMirrorDouble( img1 ), target1, numThreads );
+		}
+		catch ( final IncompatibleTypeException e )
+		{
+			errorMessage = BASE_ERROR_MSG + e.getMessage();
+			e.printStackTrace();
+			return false;
+		}
+		Dilation.dilateInPlace( target1, target1, strel, numThreads );
+		final double threshold1 = ContactImgGenerator2.otsuTreshold( target1 ).getRealDouble();
 
 		final Img< T > target2 = factory.create( img1, Util.getTypeFromInterval( img1 ) );
-		Dilation.dilate( Views.extendZero( img2 ), target2, strel, numThreads );
+		try
+		{
+			Gauss3.gauss( sigmas, Views.extendMirrorDouble( img2 ), target2, numThreads );
+		}
+		catch ( final IncompatibleTypeException e )
+		{
+			errorMessage = BASE_ERROR_MSG + e.getMessage();
+			e.printStackTrace();
+			return false;
+		}
+		Dilation.dilateInPlace( target2, target2, strel, numThreads );
+		final double threshold2 = ContactImgGenerator2.otsuTreshold( target2 ).getRealDouble();
 
 		final Cursor< T > oc = out.localizingCursor();
 		final RandomAccess< T > ra1 = target1.randomAccess( out );
@@ -90,8 +123,8 @@ public class ContactImgGenerator< T extends RealType< T > & NativeType< T >> imp
 			ra1.setPosition( oc );
 			ra2.setPosition( oc );
 
-			final double t1 = ra1.get().getRealDouble();
-			final double t2 = ra2.get().getRealDouble();
+			final double t1 = Math.max( 0., ra1.get().getRealDouble() - threshold1 );
+			final double t2 = Math.max( 0., ra2.get().getRealDouble() - threshold2 );
 
 			oc.get().setReal( ( t1 * t2 ) / ( t1 + t2 ) );
 		}
