@@ -15,10 +15,9 @@ import net.imglib2.algorithm.morphology.Dilation;
 import net.imglib2.algorithm.morphology.StructuringElements;
 import net.imglib2.algorithm.neighborhood.Shape;
 import net.imglib2.algorithm.stats.ComputeMinMax;
-import net.imglib2.algorithm.stats.Histogram;
-import net.imglib2.algorithm.stats.HistogramBinMapper;
-import net.imglib2.algorithm.stats.RealBinMapper;
 import net.imglib2.exception.IncompatibleTypeException;
+import net.imglib2.histogram.Histogram1d;
+import net.imglib2.histogram.Real1dBinMapper;
 import net.imglib2.img.Img;
 import net.imglib2.img.ImgFactory;
 import net.imglib2.img.display.imagej.ImageJFunctions;
@@ -153,50 +152,68 @@ public class ContactImgGenerator2< T extends RealType< T > & NativeType< T >> im
 		final T max = Util.getTypeFromInterval( src ).createVariable();
 		ComputeMinMax.computeMinMax( src, min, max );
 
-		final HistogramBinMapper< T > mapper = new RealBinMapper< T >( min, max, 256 );
-		final Histogram< T > histo = new Histogram< T >( mapper, src );
-		histo.process();
+		final Real1dBinMapper< T > mapper = new Real1dBinMapper< T >( min.getRealDouble(), max.getRealDouble(), 256l, false );
+		final Histogram1d< T > hist = new Histogram1d< T >( src, mapper );
 
-		double sum = 0;
-		for ( int i = 0; i < histo.getNumBins(); i++ )
+		final long[] histogram = hist.toLongArray();
+		// Otsu's threshold algorithm
+		// C++ code by Jordan Bevik <Jordan.Bevic@qtiworld.com>
+		// ported to ImageJ plugin by G.Landini
+		int k, kStar; // k = the current threshold; kStar = optimal threshold
+		final int L = histogram.length; // The total intensity of the image
+		long N1, N; // N1 = # points with intensity <=k; N = total number of points
+		long Sk; // The total intensity for all histogram points <=k
+		long S;
+		double BCV, BCVmax; // The current Between Class Variance and maximum BCV
+		double num, denom; // temporary bookkeeping
+
+		// Initialize values:
+		S = 0;
+		N = 0;
+		for ( k = 0; k < L; k++ )
 		{
-			sum += histo.getBinCenter( i ).getRealDouble() * histo.getBin( i );
+			S += k * histogram[ k ]; // Total histogram intensity
+			N += histogram[ k ]; // Total number of data points
 		}
 
-		final long total = src.size();
-		long wB = 0;
-		long wF = 0;
-		double sumB = 0;
-		
-		double varMax = 0;
-		T threshold = Util.getTypeFromInterval( src ).createVariable();
-		threshold.setZero();
+		Sk = 0;
+		N1 = histogram[ 0 ]; // The entry for zero intensity
+		BCV = 0;
+		BCVmax = 0;
+		kStar = 0;
 
-		for ( int i = 0; i < histo.getNumBins(); i++ )
-		{
-			wB += histo.getBin( i );
-			wF = total - wB;
+		// Look at each possible threshold value,
+		// calculate the between-class variance, and decide if it's a max
+		for ( k = 1; k < L - 1; k++ )
+		{ // No need to check endpoints k = 0 or k = L-1
+			Sk += k * histogram[ k ];
+			N1 += histogram[ k ];
 
-			if ( wF == 0 )
+			// The float casting here is to avoid compiler warning about loss of
+			// precision and will prevent overflow in the case of large saturated images
+			denom = ( double ) ( N1 ) * ( N - N1 ); // Maximum value of denom is (N^2)/4 = approx. 3E10
+
+			if ( denom != 0 )
 			{
-				break;
+				// Float here is to avoid loss of precision when dividing
+				num = ( ( double ) N1 / N ) * S - Sk; // Maximum value of num =
+				// 255*N = approx 8E7
+				BCV = ( num * num ) / denom;
 			}
-			
-			sumB += histo.getBinCenter( i ).getRealDouble() * histo.getBin( i );
+			else
+				BCV = 0;
 
-			final double mB = sumB / wB;
-			final double mF = ( sum - sumB ) / wB;
-
-			final double varBetween = ( double ) wB * ( double ) wF * ( mB - mF ) * ( mB - mF );
-
-			if ( varBetween > varMax )
-			{
-				varMax = varBetween;
-				threshold = histo.getBinCenter( i );
+			if ( BCV >= BCVmax )
+			{ // Assign the best threshold found so far
+				BCVmax = BCV;
+				kStar = k;
 			}
 		}
-
-		return threshold;
+		// kStar += 1; // Use QTI convention that intensity -> 1 if intensity >= k
+		// (the algorithm was developed for I-> 1 if I <= k.)
+		final T val = hist.firstDataValue().createVariable();
+		hist.getCenterValue( kStar, val );
+		return val;
 	}
 
 	@Override
