@@ -69,6 +69,10 @@ public class CellContactDetectorFactory< T extends RealType< T > & NativeType< T
 
 	public static final String KEY_SIGMA_FILTER = "SIGMA_FILTER";
 
+	public static final String KEY_THRESHOLD_1 = "THRESHOLD_C1";
+
+	public static final String KEY_THRESHOLD_2 = "THRESHOLD_C2";
+
 	private ImgPlus< T > img;
 
 	private Map< String, Object > settings;
@@ -150,7 +154,9 @@ public class CellContactDetectorFactory< T extends RealType< T > & NativeType< T
 		}
 
 		final double threshold = ( Double ) settings.get( KEY_THRESHOLD );
-		final CellContactDetector< T > detector = new CellContactDetector< T >( im1, im2, contactSize, sigma, threshold, calibration );
+		final double threshold_C1 = ( Double ) settings.get( KEY_THRESHOLD_1 );
+		final double threshold_C2 = ( Double ) settings.get( KEY_THRESHOLD_2 );
+		final CellContactDetector< T > detector = new CellContactDetector< T >( im1, im2, threshold_C1, threshold_C2, contactSize, sigma, threshold, calibration );
 		detector.setNumThreads( 1 );
 		return detector;
 	}
@@ -186,7 +192,7 @@ public class CellContactDetectorFactory< T extends RealType< T > & NativeType< T
 			ok = ok && writeAttribute( settings, element, key, Integer.class, errorHolder );
 		}
 
-		final String[] doubleKeys = new String[] { KEY_SIGMA_FILTER, KEY_THRESHOLD };
+		final String[] doubleKeys = new String[] { KEY_SIGMA_FILTER, KEY_THRESHOLD, KEY_THRESHOLD_1, KEY_THRESHOLD_2 };
 		for ( final String key : doubleKeys )
 		{
 			ok = ok && writeAttribute( settings, element, key, Double.class, errorHolder );
@@ -212,6 +218,8 @@ public class CellContactDetectorFactory< T extends RealType< T > & NativeType< T
 		ok = ok & readIntegerAttribute( element, settings, KEY_CONTACT_SIZE, errorHolder );
 		ok = ok & readDoubleAttribute( element, settings, KEY_SIGMA_FILTER, errorHolder );
 		ok = ok & readDoubleAttribute( element, settings, KEY_THRESHOLD, errorHolder );
+		ok = ok & readDoubleAttribute( element, settings, KEY_THRESHOLD_1, errorHolder );
+		ok = ok & readDoubleAttribute( element, settings, KEY_THRESHOLD_2, errorHolder );
 		if ( !ok )
 		{
 			errorMessage = errorHolder.toString();
@@ -228,7 +236,9 @@ public class CellContactDetectorFactory< T extends RealType< T > & NativeType< T
 		settings.put( KEY_CHANNEL_2, Integer.valueOf( 3 ) );
 		settings.put( KEY_CONTACT_SIZE, Integer.valueOf( 3 ) );
 		settings.put( KEY_SIGMA_FILTER, Double.valueOf( 1. ) );
-		settings.put( KEY_THRESHOLD, Double.valueOf( 0.1 ) );
+		settings.put( KEY_THRESHOLD, Double.valueOf( 0.01 ) );
+		settings.put( KEY_THRESHOLD_1, Double.valueOf( 200. ) );
+		settings.put( KEY_THRESHOLD_2, Double.valueOf( 200. ) );
 		settings.put( KEY_TARGET_CHANNEL, Integer.valueOf( 1 ) ); // dummy
 		return settings;
 	}
@@ -244,6 +254,8 @@ public class CellContactDetectorFactory< T extends RealType< T > & NativeType< T
 		ok = ok & checkParameter( settings, KEY_CONTACT_SIZE, Integer.class, errorHolder );
 		ok = ok & checkParameter( settings, KEY_SIGMA_FILTER, Double.class, errorHolder );
 		ok = ok & checkParameter( settings, KEY_THRESHOLD, Double.class, errorHolder );
+		ok = ok & checkParameter( settings, KEY_THRESHOLD_1, Double.class, errorHolder );
+		ok = ok & checkParameter( settings, KEY_THRESHOLD_2, Double.class, errorHolder );
 		final List< String > mandatoryKeys = new ArrayList< String >();
 		mandatoryKeys.add( KEY_CHANNEL_1 );
 		mandatoryKeys.add( KEY_CHANNEL_2 );
@@ -251,6 +263,8 @@ public class CellContactDetectorFactory< T extends RealType< T > & NativeType< T
 		mandatoryKeys.add( KEY_CONTACT_SIZE );
 		mandatoryKeys.add( KEY_SIGMA_FILTER );
 		mandatoryKeys.add( KEY_THRESHOLD );
+		mandatoryKeys.add( KEY_THRESHOLD_1 );
+		mandatoryKeys.add( KEY_THRESHOLD_2 );
 		ok = ok & checkMapKeys( settings, mandatoryKeys, null, errorHolder );
 		
 		if (ok)

@@ -8,6 +8,8 @@ import static fr.pasteur.trackmate.CellContactDetectorFactory.KEY_CHANNEL_1;
 import static fr.pasteur.trackmate.CellContactDetectorFactory.KEY_CHANNEL_2;
 import static fr.pasteur.trackmate.CellContactDetectorFactory.KEY_CONTACT_SIZE;
 import static fr.pasteur.trackmate.CellContactDetectorFactory.KEY_SIGMA_FILTER;
+import static fr.pasteur.trackmate.CellContactDetectorFactory.KEY_THRESHOLD_1;
+import static fr.pasteur.trackmate.CellContactDetectorFactory.KEY_THRESHOLD_2;
 import ij.ImagePlus;
 import ij.gui.NewImage;
 
@@ -31,6 +33,10 @@ import javax.swing.SwingConstants;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
+import net.imagej.ImgPlus;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.type.numeric.RealType;
+import net.imglib2.view.Views;
 import fiji.plugin.trackmate.Logger;
 import fiji.plugin.trackmate.Model;
 import fiji.plugin.trackmate.Settings;
@@ -39,7 +45,10 @@ import fiji.plugin.trackmate.SpotCollection;
 import fiji.plugin.trackmate.TrackMate;
 import fiji.plugin.trackmate.gui.ConfigurationPanel;
 import fiji.plugin.trackmate.util.JLabelLogger;
+import fiji.plugin.trackmate.util.TMUtils;
+import fr.pasteur.ContactImgGenerator;
 
+@SuppressWarnings( "deprecation" )
 public class CellContactConfigurationPanel extends ConfigurationPanel
 {
 	private static final long serialVersionUID = 1L;
@@ -62,6 +71,14 @@ public class CellContactConfigurationPanel extends ConfigurationPanel
 
 	private final Logger localLogger;
 
+	private final JFormattedTextField jtfThresholdC1;
+
+	private final JFormattedTextField jtfThresholdC2;
+
+	private final JLabel jtfCh2;
+
+	private final JLabel jtfCh1;
+
 	public CellContactConfigurationPanel( final ImagePlus imp, final Model model )
 	{
 		this.imp = imp == null ? NewImage.createByteImage( "Blank", 50, 50, 3, NewImage.FILL_BLACK ) : imp;
@@ -83,7 +100,7 @@ public class CellContactConfigurationPanel extends ConfigurationPanel
 
 		sliderCh1 = new JSlider( 1, imp.getNChannels() );
 
-		final JLabel jtfCh1 = new JLabel( "1" );
+		jtfCh1 = new JLabel( "1" );
 		jtfCh1.setHorizontalAlignment( SwingConstants.CENTER );
 		jtfCh1.setFont( FONT );
 
@@ -101,7 +118,7 @@ public class CellContactConfigurationPanel extends ConfigurationPanel
 
 		sliderCh2 = new JSlider( 1, imp.getNChannels() );
 
-		final JLabel jtfCh2 = new JLabel( "2" );
+		jtfCh2 = new JLabel( "2" );
 		jtfCh2.setHorizontalAlignment( SwingConstants.CENTER );
 		jtfCh2.setFont( FONT );
 
@@ -149,47 +166,85 @@ public class CellContactConfigurationPanel extends ConfigurationPanel
 		final JLabelLogger labelLogger = new JLabelLogger();
 		localLogger = labelLogger.getLogger();
 
+		final JButton btnThresholdC1 = new JButton( "Threshold C1:" );
+		btnThresholdC1.setFont( FONT );
+		btnThresholdC1.addActionListener( new ActionListener()
+		{
+			@Override
+			public void actionPerformed( final ActionEvent e )
+			{
+				estimateThreshold( sliderCh1.getValue() - 1, jtfThresholdC1, btnThresholdC1 );
+			}
+		} );
+
+		final JButton btnThresholdC2 = new JButton( "Threshold C2:" );
+		btnThresholdC2.setFont( FONT );
+		btnThresholdC2.addActionListener( new ActionListener()
+		{
+
+			@Override
+			public void actionPerformed( final ActionEvent e )
+			{
+				estimateThreshold( sliderCh2.getValue() - 1, jtfThresholdC2, btnThresholdC2 );
+			}
+		} );
+
+		jtfThresholdC1 = new JFormattedTextField( Double.valueOf( 200. ) );
+		jtfThresholdC1.setHorizontalAlignment( SwingConstants.CENTER );
+		jtfThresholdC1.setFont( FONT );
+
+		jtfThresholdC2 = new JFormattedTextField( Double.valueOf( 200. ) );
+		jtfThresholdC2.setHorizontalAlignment( SwingConstants.CENTER );
+		jtfThresholdC2.setFont( FONT );
+
 		final GroupLayout groupLayout = new GroupLayout( this );
 		groupLayout.setHorizontalGroup(
 				groupLayout.createParallelGroup( Alignment.LEADING )
 						.addGroup( groupLayout.createSequentialGroup()
 								.addContainerGap()
-								.addGroup( groupLayout.createParallelGroup( Alignment.LEADING )
-										.addGroup( groupLayout.createSequentialGroup()
-												.addComponent( lblChannel1, GroupLayout.PREFERRED_SIZE, 86, GroupLayout.PREFERRED_SIZE )
-												.addPreferredGap( ComponentPlacement.RELATED )
-												.addComponent( sliderCh1, GroupLayout.DEFAULT_SIZE, 144, Short.MAX_VALUE )
-												.addGap( 3 )
-												.addComponent( jtfCh1, GroupLayout.PREFERRED_SIZE, 50, GroupLayout.PREFERRED_SIZE )
-												.addContainerGap() )
+								.addGroup( groupLayout.createParallelGroup( Alignment.TRAILING )
+										.addComponent( lblInfo, GroupLayout.DEFAULT_SIZE, 295, Short.MAX_VALUE )
 										.addGroup( groupLayout.createSequentialGroup()
 												.addGroup( groupLayout.createParallelGroup( Alignment.TRAILING )
-														.addComponent( lblInfo, Alignment.LEADING, GroupLayout.DEFAULT_SIZE, 292, Short.MAX_VALUE )
 														.addComponent( lblDetectorName, Alignment.LEADING, GroupLayout.DEFAULT_SIZE, 292, Short.MAX_VALUE )
 														.addComponent( lblTitle, Alignment.LEADING, GroupLayout.DEFAULT_SIZE, 292, Short.MAX_VALUE ) )
 												.addGap( 3 ) )
 										.addGroup( groupLayout.createSequentialGroup()
-												.addComponent( lblChannel2, GroupLayout.PREFERRED_SIZE, 86, GroupLayout.PREFERRED_SIZE )
-												.addGap( 6 )
-												.addComponent( sliderCh2, GroupLayout.DEFAULT_SIZE, 141, Short.MAX_VALUE )
-												.addPreferredGap( ComponentPlacement.RELATED )
-												.addComponent( jtfCh2, GroupLayout.PREFERRED_SIZE, 50, GroupLayout.PREFERRED_SIZE )
+												.addGroup( groupLayout.createParallelGroup( Alignment.LEADING )
+														.addGroup( groupLayout.createSequentialGroup()
+																.addComponent( lblChannel1, GroupLayout.PREFERRED_SIZE, 86, GroupLayout.PREFERRED_SIZE )
+																.addPreferredGap( ComponentPlacement.RELATED )
+																.addComponent( sliderCh1, GroupLayout.DEFAULT_SIZE, 144, Short.MAX_VALUE )
+																.addGap( 3 )
+																.addComponent( jtfCh1, GroupLayout.PREFERRED_SIZE, 50, GroupLayout.PREFERRED_SIZE ) )
+														.addGroup( groupLayout.createSequentialGroup()
+																.addComponent( lblChannel2, GroupLayout.PREFERRED_SIZE, 86, GroupLayout.PREFERRED_SIZE )
+																.addGap( 6 )
+																.addComponent( sliderCh2, GroupLayout.DEFAULT_SIZE, 141, Short.MAX_VALUE )
+																.addPreferredGap( ComponentPlacement.RELATED )
+																.addComponent( jtfCh2, GroupLayout.PREFERRED_SIZE, 50, GroupLayout.PREFERRED_SIZE ) ) )
 												.addContainerGap() )
+										.addComponent( btnThresholdC1, Alignment.LEADING )
+										.addComponent( btnThresholdC2, Alignment.LEADING )
 										.addGroup( groupLayout.createSequentialGroup()
-												.addGroup( groupLayout.createParallelGroup( Alignment.TRAILING, false )
-														.addComponent( lblThreshold, Alignment.LEADING, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE )
-														.addComponent( lblFilterSigma, Alignment.LEADING, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE )
-														.addComponent( lblContactSize, Alignment.LEADING, GroupLayout.DEFAULT_SIZE, 101, Short.MAX_VALUE ) )
-												.addPreferredGap( ComponentPlacement.RELATED )
-												.addGroup( groupLayout.createParallelGroup( Alignment.LEADING, false )
-														.addComponent( jtfSigma )
-														.addComponent( jtfContactSize, GroupLayout.DEFAULT_SIZE, 43, Short.MAX_VALUE )
-														.addComponent( jtfThreshold, GroupLayout.PREFERRED_SIZE, 68, GroupLayout.PREFERRED_SIZE ) )
-												.addGap( 120 ) )
-										.addGroup( groupLayout.createSequentialGroup()
-												.addComponent( btnPreview )
-												.addGap( 18 )
-												.addComponent( labelLogger, GroupLayout.DEFAULT_SIZE, 191, Short.MAX_VALUE )
+												.addGroup( groupLayout.createParallelGroup( Alignment.LEADING )
+														.addGroup( groupLayout.createSequentialGroup()
+																.addComponent( btnPreview )
+																.addGap( 18 )
+																.addComponent( labelLogger, GroupLayout.DEFAULT_SIZE, 197, Short.MAX_VALUE ) )
+														.addGroup( groupLayout.createSequentialGroup()
+																.addGroup( groupLayout.createParallelGroup( Alignment.TRAILING, false )
+																		.addComponent( lblThreshold, Alignment.LEADING, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE )
+																		.addComponent( lblFilterSigma, Alignment.LEADING, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE )
+																		.addComponent( lblContactSize, Alignment.LEADING, GroupLayout.PREFERRED_SIZE, 101, GroupLayout.PREFERRED_SIZE ) )
+																.addPreferredGap( ComponentPlacement.RELATED )
+																.addGroup( groupLayout.createParallelGroup( Alignment.LEADING )
+																		.addComponent( jtfSigma )
+																		.addComponent( jtfContactSize, GroupLayout.DEFAULT_SIZE, 43, Short.MAX_VALUE )
+																		.addComponent( jtfThreshold, GroupLayout.PREFERRED_SIZE, 68, GroupLayout.PREFERRED_SIZE )
+																		.addComponent( jtfThresholdC1, GroupLayout.DEFAULT_SIZE, 60, Short.MAX_VALUE )
+																		.addComponent( jtfThresholdC2, GroupLayout.DEFAULT_SIZE, 60, Short.MAX_VALUE ) )
+																.addPreferredGap( ComponentPlacement.RELATED, 120, GroupLayout.PREFERRED_SIZE ) ) )
 												.addContainerGap() ) ) )
 				);
 		groupLayout.setVerticalGroup(
@@ -200,18 +255,26 @@ public class CellContactConfigurationPanel extends ConfigurationPanel
 								.addPreferredGap( ComponentPlacement.RELATED )
 								.addComponent( lblDetectorName, GroupLayout.PREFERRED_SIZE, 30, GroupLayout.PREFERRED_SIZE )
 								.addPreferredGap( ComponentPlacement.RELATED )
-								.addComponent( lblInfo, GroupLayout.PREFERRED_SIZE, 129, GroupLayout.PREFERRED_SIZE )
+								.addComponent( lblInfo, GroupLayout.PREFERRED_SIZE, 96, GroupLayout.PREFERRED_SIZE )
 								.addPreferredGap( ComponentPlacement.RELATED )
 								.addGroup( groupLayout.createParallelGroup( Alignment.LEADING, false )
 										.addComponent( sliderCh1, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE )
 										.addComponent( lblChannel1, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE )
-										.addComponent( jtfCh1, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE ) )
+										.addComponent( jtfCh1 ) )
 								.addPreferredGap( ComponentPlacement.RELATED )
 								.addGroup( groupLayout.createParallelGroup( Alignment.LEADING, false )
 										.addComponent( lblChannel2, GroupLayout.DEFAULT_SIZE, 29, Short.MAX_VALUE )
 										.addComponent( sliderCh2, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE )
-										.addComponent( jtfCh2, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE ) )
-								.addPreferredGap( ComponentPlacement.UNRELATED )
+										.addComponent( jtfCh2 ) )
+								.addPreferredGap( ComponentPlacement.RELATED )
+								.addGroup( groupLayout.createParallelGroup( Alignment.BASELINE )
+										.addComponent( btnThresholdC1 )
+										.addComponent( jtfThresholdC1, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE ) )
+								.addPreferredGap( ComponentPlacement.RELATED )
+								.addGroup( groupLayout.createParallelGroup( Alignment.BASELINE )
+										.addComponent( btnThresholdC2 )
+										.addComponent( jtfThresholdC2, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE ) )
+								.addPreferredGap( ComponentPlacement.RELATED )
 								.addGroup( groupLayout.createParallelGroup( Alignment.BASELINE )
 										.addComponent( lblContactSize )
 										.addComponent( jtfContactSize, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE ) )
@@ -223,13 +286,58 @@ public class CellContactConfigurationPanel extends ConfigurationPanel
 								.addGroup( groupLayout.createParallelGroup( Alignment.BASELINE )
 										.addComponent( lblThreshold )
 										.addComponent( jtfThreshold, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE ) )
-								.addGap( 55 )
+								.addGap( 18 )
 								.addGroup( groupLayout.createParallelGroup( Alignment.BASELINE )
 										.addComponent( btnPreview )
 										.addComponent( labelLogger, GroupLayout.PREFERRED_SIZE, 29, GroupLayout.PREFERRED_SIZE ) )
-								.addContainerGap( 81, Short.MAX_VALUE ) )
+								.addContainerGap( 87, Short.MAX_VALUE ) )
 				);
 		setLayout( groupLayout );
+	}
+
+	private void estimateThreshold( final int channel, final JFormattedTextField target, final JButton source )
+	{
+		source.setEnabled( false );
+		new Thread( "CCCT Threshold estimator thread" )
+		{
+			@SuppressWarnings( { "rawtypes", "unchecked" } )
+			@Override
+			public void run()
+			{
+				try
+				{
+					final int frame = imp.getFrame() - 1;
+					final ImgPlus img = TMUtils.rawWraps( imp );
+					RandomAccessibleInterval slice;
+
+					final int cDim = TMUtils.findCAxisIndex( img );
+					if ( cDim < 0 )
+					{
+						slice = img;
+					}
+					else
+					{
+						slice = Views.hyperSlice( img, cDim, channel );
+					}
+
+					int timeDim = TMUtils.findTAxisIndex( img );
+					if ( timeDim >= 0 )
+					{
+						if ( cDim >= 0 && timeDim > cDim )
+						{
+							timeDim--;
+						}
+						slice = Views.hyperSlice( slice, timeDim, frame );
+					}
+					final RealType threshold = ContactImgGenerator.otsuTreshold( slice );
+					target.setValue( Double.valueOf( threshold.getRealDouble() ) );
+				}
+				finally
+				{
+					source.setEnabled( true );
+				}
+			};
+		}.start();
 	}
 
 	@Override
@@ -237,6 +345,9 @@ public class CellContactConfigurationPanel extends ConfigurationPanel
 	{
 		sliderCh1.setValue( Math.min( imp.getNChannels(), ( Integer ) settings.get( KEY_CHANNEL_1 ) ) );
 		sliderCh2.setValue( Math.min( imp.getNChannels(), ( Integer ) settings.get( KEY_CHANNEL_2 ) ) );
+		jtfCh1.setText( "" + sliderCh1.getValue() );
+		jtfCh2.setText( "" + sliderCh2.getValue() );
+
 		jtfContactSize.setValue( settings.get( KEY_CONTACT_SIZE ) );
 		jtfSigma.setValue( settings.get( KEY_SIGMA_FILTER ) );
 		jtfThreshold.setValue( settings.get( KEY_THRESHOLD ) );
@@ -253,6 +364,8 @@ public class CellContactConfigurationPanel extends ConfigurationPanel
 			jtfContactSize.commitEdit();
 			jtfSigma.commitEdit();
 			jtfThreshold.commitEdit();
+			jtfThresholdC1.commitEdit();
+			jtfThresholdC2.commitEdit();
 		}
 		catch ( final ParseException e )
 		{
@@ -261,12 +374,17 @@ public class CellContactConfigurationPanel extends ConfigurationPanel
 
 		final int contactSize = ( Integer ) jtfContactSize.getValue();
 		final double sigma = ( Double ) jtfSigma.getValue();
+		final double threshold_C1 = ( Double ) jtfThresholdC1.getValue();
+		final double threshold_C2 = ( Double ) jtfThresholdC2.getValue();
 		final double threshold = ( Double ) jtfThreshold.getValue();
 
 		settings.put( KEY_CHANNEL_1, channel1 );
 		settings.put( KEY_CHANNEL_2, channel2 );
 		settings.put( KEY_CONTACT_SIZE, contactSize );
 		settings.put( KEY_SIGMA_FILTER, sigma );
+		settings.put( KEY_THRESHOLD, threshold );
+		settings.put( KEY_THRESHOLD_1, threshold_C1 );
+		settings.put( KEY_THRESHOLD_2, threshold_C2 );
 		settings.put( KEY_THRESHOLD, threshold );
 		// Add a dummy target channel
 		settings.put( KEY_TARGET_CHANNEL, 1 );

@@ -44,11 +44,17 @@ public class ContactImgGenerator< T extends RealType< T > & NativeType< T >> imp
 
 	private final double sigma;
 
-	public ContactImgGenerator( final RandomAccessibleInterval< T > img1, final RandomAccessibleInterval< T > img2, final IterableInterval< T > out, final int contactSize, final double sigma )
+	private final double threshold_C1;
+
+	private final double threshold_C2;
+
+	public ContactImgGenerator( final RandomAccessibleInterval< T > img1, final RandomAccessibleInterval< T > img2, final IterableInterval< T > out, final double threshold_C1, final double threshold_C2, final int contactSize, final double sigma )
 	{
 		this.img1 = img1;
 		this.img2 = img2;
 		this.out = out;
+		this.threshold_C1 = threshold_C1;
+		this.threshold_C2 = threshold_C2;
 		this.contactSize = contactSize;
 		this.sigma = sigma;
 		setNumThreads();
@@ -101,7 +107,6 @@ public class ContactImgGenerator< T extends RealType< T > & NativeType< T >> imp
 			return false;
 		}
 		Dilation.dilateInPlace( target1, target1, strel, numThreads );
-		final double threshold1 = otsuTreshold( target1 ).getRealDouble();
 
 		final Img< T > target2 = factory.create( img1, Util.getTypeFromInterval( img1 ) );
 		try
@@ -115,7 +120,6 @@ public class ContactImgGenerator< T extends RealType< T > & NativeType< T >> imp
 			return false;
 		}
 		Dilation.dilateInPlace( target2, target2, strel, numThreads );
-		final double threshold2 = otsuTreshold( target2 ).getRealDouble();
 
 		final Cursor< T > oc = out.localizingCursor();
 		final RandomAccess< T > ra1 = target1.randomAccess( out );
@@ -126,8 +130,8 @@ public class ContactImgGenerator< T extends RealType< T > & NativeType< T >> imp
 			ra1.setPosition( oc );
 			ra2.setPosition( oc );
 
-			final double t1 = Math.max( 0., ra1.get().getRealDouble() - threshold1 );
-			final double t2 = Math.max( 0., ra2.get().getRealDouble() - threshold2 );
+			final double t1 = Math.max( 0., ra1.get().getRealDouble() - threshold_C1 );
+			final double t2 = Math.max( 0., ra2.get().getRealDouble() - threshold_C2 );
 
 			oc.get().setReal( ( t1 * t2 ) / ( t1 + t2 ) );
 		}
@@ -167,7 +171,7 @@ public class ContactImgGenerator< T extends RealType< T > & NativeType< T >> imp
 		return processingTime;
 	}
 
-	public static final < T extends RealType< T >> T otsuTreshold( final Img< T > src )
+	public static final < T extends RealType< T >> T otsuTreshold( final RandomAccessibleInterval<T> src )
 	{
 
 		final T min = Util.getTypeFromInterval( src ).createVariable();
@@ -175,7 +179,8 @@ public class ContactImgGenerator< T extends RealType< T > & NativeType< T >> imp
 		ComputeMinMax.computeMinMax( src, min, max );
 
 		final Real1dBinMapper< T > mapper = new Real1dBinMapper< T >( min.getRealDouble(), max.getRealDouble(), 256l, false );
-		final Histogram1d< T > hist = new Histogram1d< T >( src, mapper );
+		final Histogram1d< T > hist = new Histogram1d< T >( mapper );
+		hist.countData( Views.iterable( src ) );
 
 		final long[] histogram = hist.toLongArray();
 		// Otsu's threshold algorithm

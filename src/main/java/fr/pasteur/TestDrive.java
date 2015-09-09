@@ -40,7 +40,8 @@ public class TestDrive
 			final ContactImgGenerator< T > algo = new ContactImgGenerator< T >(
 					Views.hyperSlice( img1, d, t ),
 					Views.hyperSlice( img2, d, t ),
-					Views.hyperSlice( out, d, t ), contactSize, sigma );
+					Views.hyperSlice( out, d, t ),
+					200., 200., contactSize, sigma );
 
 			if ( !algo.checkInput() || !algo.process() )
 			{
