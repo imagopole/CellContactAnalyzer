@@ -116,6 +116,8 @@ public class CCCTGui extends JFrame
 		} );
 
 		progressBar = new JProgressBar( 0, 100 );
+		progressBar.setStringPainted( true );
+		progressBar.setFont( FONT );
 
 		final GroupLayout gl_panelAnalyze = new GroupLayout( panelAnalyze );
 		gl_panelAnalyze.setHorizontalGroup(
@@ -164,6 +166,18 @@ public class CCCTGui extends JFrame
 			public void run()
 			{
 				progressBar.setValue( ( int ) ( 100 * d ) );
+			}
+		} );
+	}
+
+	public void setProgressStatus( final String msg )
+	{
+		SwingUtilities.invokeLater( new Runnable()
+		{
+			@Override
+			public void run()
+			{
+				progressBar.setString( msg );
 			}
 		} );
 	}

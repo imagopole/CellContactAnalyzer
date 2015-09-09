@@ -7,6 +7,7 @@ import static fr.pasteur.trackmate.CellContactDetectorFactory.KEY_SIGMA_FILTER;
 import static fr.pasteur.trackmate.CellContactDetectorFactory.KEY_THRESHOLD_1;
 import fiji.plugin.trackmate.gui.GuiUtils;
 import fiji.plugin.trackmate.util.TMUtils;
+import fr.pasteur.util.Thresholder;
 import ij.CompositeImage;
 import ij.IJ;
 import ij.ImageJ;
@@ -15,19 +16,26 @@ import ij.WindowManager;
 import ij.plugin.PlugIn;
 
 import java.io.File;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import net.imagej.ImgPlus;
+import net.imglib2.IterableInterval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.algorithm.MultiThreaded;
+import net.imglib2.algorithm.labeling.AllConnectedComponents;
 import net.imglib2.img.Img;
 import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.img.planar.PlanarImgFactory;
+import net.imglib2.labeling.NativeImgLabeling;
 import net.imglib2.multithreading.SimpleMultiThreading;
 import net.imglib2.type.NativeType;
+import net.imglib2.type.logic.BitType;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.numeric.integer.UnsignedIntType;
 import net.imglib2.util.Util;
+import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 
 @SuppressWarnings( "deprecation" )
@@ -46,7 +54,7 @@ public class CCCT_< T extends RealType< T > & NativeType< T >> implements PlugIn
 
 	public CCCT_()
 	{
-		setNumThreads();
+		setNumThreads( 10 );
 	}
 
 	@Override
@@ -80,7 +88,6 @@ public class CCCT_< T extends RealType< T > & NativeType< T >> implements PlugIn
 	{
 		@SuppressWarnings( "unchecked" )
 		final ImgPlus< T > img = TMUtils.rawWraps( imp );
-
 
 		final Map< String, Object > settings = gui.getSettings();
 
@@ -119,51 +126,110 @@ public class CCCT_< T extends RealType< T > & NativeType< T >> implements PlugIn
 			}
 		}
 		final int td = timeDim;
-
 		final int nFrames = imp.getNFrames();
-		final AtomicInteger ai = new AtomicInteger( 0 );
-		final Thread[] threads = SimpleMultiThreading.newThreads( numThreads );
-		for ( int i = 0; i < threads.length; i++ )
+
 		{
-			threads[ i ] = new Thread( "CCCT Thread" )
+			gui.setProgressStatus( "Contact image" );
+			final AtomicInteger ai = new AtomicInteger( 0 );
+			final Thread[] threads = SimpleMultiThreading.newThreads( numThreads );
+			for ( int i = 0; i < threads.length; i++ )
 			{
-				@Override
-				public void run()
+				threads[ i ] = new Thread( "CCCT Thread Contact Image" )
 				{
-					for ( int frame = ai.getAndIncrement(); frame < nFrames; frame = ai.getAndIncrement() )
+					@Override
+					public void run()
 					{
-						final ContactImgGenerator< T > algo = new ContactImgGenerator< T >(
-								Views.hyperSlice( im1, td, frame ),
-								Views.hyperSlice( im2, td, frame ),
-								Views.hyperSlice( out, out.numDimensions() - 1, frame ),
-								thresholdC1, thresholdC2, contactSize, sigma );
-
-						if ( !algo.checkInput() || !algo.process() )
+						for ( int frame = ai.getAndIncrement(); frame < nFrames; frame = ai.getAndIncrement() )
 						{
-							System.err.println( algo.getErrorMessage() );
-							return;
+							final ContactImgGenerator< T > algo = new ContactImgGenerator< T >(
+									Views.hyperSlice( im1, td, frame ),
+									Views.hyperSlice( im2, td, frame ),
+									Views.hyperSlice( out, out.numDimensions() - 1, frame ),
+									thresholdC1, thresholdC2, contactSize, sigma );
+
+							if ( !algo.checkInput() || !algo.process() )
+							{
+								System.err.println( algo.getErrorMessage() );
+								return;
+							}
+
+							gui.setProgress( ( 1.0 + ai.get() ) / nFrames );
 						}
-
-						gui.setProgress( ( 1.0 + ai.get() ) / nFrames );
 					}
-				}
-			};
-		}
-		SimpleMultiThreading.startAndJoin( threads );
+				};
+			}
+			SimpleMultiThreading.startAndJoin( threads );
 
-		if ( showContactImage )
+			if ( showContactImage )
+			{
+				final ImagePlus contacts = ImageJFunctions.wrap( out, "Contacts" );
+				contacts.setCalibration( imp.getCalibration() );
+				contacts.setDimensions( 1, imp.getNSlices(), imp.getNFrames() );
+				contacts.show();
+			}
+		}
+		/*
+		 * Generate binary mask.
+		 */
+
+		if ( contactMask || contactLabels )
 		{
-			final ImagePlus contacts = ImageJFunctions.wrap( out, "Contacts" );
-			contacts.setCalibration( imp.getCalibration() );
-			contacts.setDimensions( 1, imp.getNSlices(), imp.getNFrames() );
-			contacts.show();
+			final PlanarImgFactory< BitType > maskFactory = new PlanarImgFactory< BitType >();
+			final Img< BitType > mask = maskFactory.create( im1, new BitType() );
+			final T valTreshold = out.firstElement().createVariable();
+			valTreshold.setZero();
+
+			gui.setProgressStatus( "Contact masks" );
+			final AtomicInteger ai = new AtomicInteger( 0 );
+			final Thread[] threads = SimpleMultiThreading.newThreads( numThreads );
+			for ( int i = 0; i < threads.length; i++ )
+			{
+				threads[ i ] = new Thread( "CCCT Thread Contact Mask" )
+				{
+					@Override
+					public void run()
+					{
+						for ( int frame = ai.getAndIncrement(); frame < nFrames; frame = ai.getAndIncrement() )
+						{
+							final IterableInterval< BitType > maskSlice = Views.hyperSlice( mask, mask.numDimensions() - 1, frame );
+							final IntervalView< T > slice = Views.hyperSlice( out, out.numDimensions() - 1, frame );
+							Thresholder.threshold( slice, maskSlice, valTreshold, true, 1 );
+							gui.setProgress( ( 1.0 + ai.get() ) / nFrames );
+						}
+					}
+				};
+			}
+			SimpleMultiThreading.startAndJoin( threads );
+
+			if ( contactMask )
+			{
+				final ImagePlus masks = ImageJFunctions.wrap( mask, "ContactMasks" );
+				masks.setCalibration( imp.getCalibration() );
+				masks.setDimensions( 1, imp.getNSlices(), imp.getNFrames() );
+				masks.show();
+			}
+
+			if ( contactLabels )
+			{
+				gui.setProgressStatus( "Contact labels" );
+				gui.setProgress( 0. );
+				final Iterator< Integer > names = AllConnectedComponents.getIntegerNames( 0 );
+				final Img< UnsignedIntType > lbl = new PlanarImgFactory< UnsignedIntType >().create( mask, new UnsignedIntType() );
+				final NativeImgLabeling< Integer, UnsignedIntType > labeling = new NativeImgLabeling< Integer, UnsignedIntType >( lbl );
+				AllConnectedComponents.labelAllConnectedComponents( labeling, mask, names );
+
+				final ImagePlus labels = ImageJFunctions.wrap( lbl, "ContactLabels" );
+				labels.setCalibration( imp.getCalibration() );
+				labels.setDimensions( 1, imp.getNSlices(), imp.getNFrames() );
+				labels.show();
+			}
 		}
 	}
 
 	public static < T extends RealType< T > & NativeType< T >> void main( final String[] args )
 	{
 		ImageJ.main( args );
-		final File file = new File( "/Users/tinevez/Projects/AMikhailova/Data/150823 SiT+SAg_1.tif" );
+		final File file = new File( "/Users/tinevez/Projects/AMikhailova/Data/150823 SiT+SAg_1-small.tif" );
 		new CCCT_< T >().run( file.getAbsolutePath() );
 	}
 
