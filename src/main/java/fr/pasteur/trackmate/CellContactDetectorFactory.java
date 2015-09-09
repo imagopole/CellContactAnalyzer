@@ -37,10 +37,13 @@ import fiji.plugin.trackmate.util.TMUtils;
 public class CellContactDetectorFactory< T extends RealType< T > & NativeType< T >> implements SpotDetectorFactory< T >
 {
 
+	private static final String PLUGIN_VERSION = "0.0.1";
+
 	static final String INFO_TEXT = "<html>"
 			+ "This detector detects cell/cell contacts for cells of two different "
 			+ "species imaged in two different channels. "
 			+ "<p> "
+			+ "Version " + PLUGIN_VERSION
 			+ "</html>";
 
 	private static final String KEY = "CELL_CONTACT_DETECTOR";
