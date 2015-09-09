@@ -32,9 +32,6 @@ public class TestDrive
 		final PlanarImgFactory< T > factory = new PlanarImgFactory< T >();
 		final Img< T > out = factory.create( img1, Util.getTypeFromInterval( img1 ) );
 
-//		final PlanarImgFactory< BitType > factory = new PlanarImgFactory< BitType >();
-//		final Img< BitType > out = factory.create( img1, new BitType() );
-
 		final int nFrames = imp1.getNFrames();
 		long dt = 0;
 		final double sigma = 1.;
@@ -45,7 +42,6 @@ public class TestDrive
 					Views.hyperSlice( img2, d, t ),
 					Views.hyperSlice( out, d, t ), contactSize, sigma );
 
-//			final ContactImgGenerator2< T > algo = new ContactImgGenerator2< T >( Views.hyperSlice( img1, d, t ), Views.hyperSlice( img2, d, t ), Views.hyperSlice( out, d, t ), contactSize, sigma );
 			if ( !algo.checkInput() || !algo.process() )
 			{
 				System.err.println( algo.getErrorMessage() );
