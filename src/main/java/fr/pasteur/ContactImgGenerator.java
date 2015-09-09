@@ -48,7 +48,8 @@ public class ContactImgGenerator< T extends RealType< T > & NativeType< T >> imp
 
 	private final double threshold_C2;
 
-	public ContactImgGenerator( final RandomAccessibleInterval< T > img1, final RandomAccessibleInterval< T > img2, final IterableInterval< T > out, final double threshold_C1, final double threshold_C2, final int contactSize, final double sigma )
+	public ContactImgGenerator( final RandomAccessibleInterval< T > img1, final RandomAccessibleInterval< T > img2, final IterableInterval< T > out,
+			final double threshold_C1, final double threshold_C2, final int contactSize, final double sigma )
 	{
 		this.img1 = img1;
 		this.img2 = img2;

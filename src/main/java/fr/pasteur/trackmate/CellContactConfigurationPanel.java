@@ -57,7 +57,7 @@ public class CellContactConfigurationPanel extends ConfigurationPanel
 
 	private final Model model;
 
-	private final JButton btnPreview;
+	protected final JButton btnPreview;
 
 	private final JSlider sliderCh1;
 
@@ -67,7 +67,7 @@ public class CellContactConfigurationPanel extends ConfigurationPanel
 
 	private final JFormattedTextField jtfSigma;
 
-	private final JFormattedTextField jtfThreshold;
+	protected final JFormattedTextField jtfThreshold;
 
 	private final Logger localLogger;
 
@@ -78,6 +78,8 @@ public class CellContactConfigurationPanel extends ConfigurationPanel
 	private final JLabel jtfCh2;
 
 	private final JLabel jtfCh1;
+
+	protected final JLabel lblThreshold;
 
 	public CellContactConfigurationPanel( final ImagePlus imp, final Model model )
 	{
@@ -145,7 +147,7 @@ public class CellContactConfigurationPanel extends ConfigurationPanel
 		jtfSigma.setHorizontalAlignment( SwingConstants.CENTER );
 		jtfSigma.setFont( FONT );
 
-		final JLabel lblThreshold = new JLabel( "Threshold:" );
+		lblThreshold = new JLabel( "Threshold on spots:" );
 		lblThreshold.setFont( FONT );
 
 		jtfThreshold = new JFormattedTextField( Double.valueOf( 0. ) );
@@ -391,7 +393,7 @@ public class CellContactConfigurationPanel extends ConfigurationPanel
 		return settings;
 	}
 
-	private void preview()
+	protected void preview()
 	{
 		btnPreview.setEnabled( false );
 		new Thread( "TrackMate preview detection thread" )
