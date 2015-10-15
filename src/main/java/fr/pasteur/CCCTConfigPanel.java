@@ -2,7 +2,7 @@ package fr.pasteur;
 
 import static fr.pasteur.trackmate.CellContactDetectorFactory.KEY_CHANNEL_1;
 import static fr.pasteur.trackmate.CellContactDetectorFactory.KEY_CHANNEL_2;
-import static fr.pasteur.trackmate.CellContactDetectorFactory.KEY_CONTACT_SIZE;
+import static fr.pasteur.trackmate.CellContactDetectorFactory.KEY_CONTACT_SENSITIVITY;
 import static fr.pasteur.trackmate.CellContactDetectorFactory.KEY_SIGMA_FILTER;
 import static fr.pasteur.trackmate.CellContactDetectorFactory.KEY_THRESHOLD_1;
 import static fr.pasteur.trackmate.CellContactDetectorFactory.KEY_THRESHOLD_2;
@@ -54,7 +54,7 @@ class CCCTConfigPanel extends CellContactConfigurationPanel
 					// In ImgLib2, dimensions are 0-based.
 					final int channel1 = ( Integer ) settings.get( KEY_CHANNEL_1 ) - 1;
 					final int channel2 = ( Integer ) settings.get( KEY_CHANNEL_2 ) - 1;
-					final int contactSize = ( Integer ) settings.get( KEY_CONTACT_SIZE );
+					final int contactSensitivity = ( Integer ) settings.get( KEY_CONTACT_SENSITIVITY );
 					final double sigma = ( Double ) settings.get( KEY_SIGMA_FILTER );
 
 					RandomAccessibleInterval im1;
@@ -92,7 +92,7 @@ class CCCTConfigPanel extends CellContactConfigurationPanel
 					final Img out = factory.create( im1, Util.getTypeFromInterval( im1 ) );
 
 					final ContactImgGenerator generator = new ContactImgGenerator( im1, im2, out,
-							threshold_C1, threshold_C2, contactSize, sigma );
+							threshold_C1, threshold_C2, contactSensitivity, sigma );
 
 					if ( !generator.checkInput() || !generator.process() )
 					{

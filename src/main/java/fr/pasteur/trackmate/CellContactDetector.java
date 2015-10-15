@@ -35,7 +35,7 @@ public class CellContactDetector< T extends RealType< T > & NativeType< T >> imp
 
 	private final RandomAccessibleInterval< T > im2;
 
-	private final int contactSize;
+	private final int contactSensitivity;
 
 	private final double sigma;
 
@@ -55,13 +55,13 @@ public class CellContactDetector< T extends RealType< T > & NativeType< T >> imp
 
 	private final double threshold_C2;
 
-	public CellContactDetector( final RandomAccessibleInterval< T > im1, final RandomAccessibleInterval< T > im2, final double threshold_C1, final double threshold_C2, final int contactSize, final double sigma, final double threshold, final double[] calibration )
+	public CellContactDetector( final RandomAccessibleInterval< T > im1, final RandomAccessibleInterval< T > im2, final double threshold_C1, final double threshold_C2, final int contactSensitivity, final double sigma, final double threshold, final double[] calibration )
 	{
 		this.im1 = im1;
 		this.im2 = im2;
 		this.threshold_C1 = threshold_C1;
 		this.threshold_C2 = threshold_C2;
-		this.contactSize = contactSize;
+		this.contactSensitivity = contactSensitivity;
 		this.sigma = sigma;
 		this.threshold = threshold;
 		this.calibration = calibration;
@@ -107,7 +107,7 @@ public class CellContactDetector< T extends RealType< T > & NativeType< T >> imp
 		final ImgFactory< T > factory = Util.getArrayOrCellImgFactory( im1, Util.getTypeFromInterval( im1 ) );
 		final Img< T > out = factory.create( im1, Util.getTypeFromInterval( im1 ) );
 		
-		final ContactImgGenerator< T > generator = new ContactImgGenerator< T >( im1, im2, out, threshold_C1, threshold_C2, contactSize, sigma );
+		final ContactImgGenerator< T > generator = new ContactImgGenerator< T >( im1, im2, out, threshold_C1, threshold_C2, contactSensitivity, sigma );
 		generator.setNumThreads( numThreads );
 		if ( !generator.checkInput() || !generator.process() )
 		{

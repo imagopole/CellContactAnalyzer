@@ -32,7 +32,7 @@ public class ContactImgGenerator< T extends RealType< T > & NativeType< T >> imp
 
 	private final RandomAccessibleInterval< T > img2;
 
-	private final int contactSize;
+	private final int contactSensitivity;
 
 	private String errorMessage;
 
@@ -49,14 +49,14 @@ public class ContactImgGenerator< T extends RealType< T > & NativeType< T >> imp
 	private final double threshold_C2;
 
 	public ContactImgGenerator( final RandomAccessibleInterval< T > img1, final RandomAccessibleInterval< T > img2, final IterableInterval< T > out,
-			final double threshold_C1, final double threshold_C2, final int contactSize, final double sigma )
+			final double threshold_C1, final double threshold_C2, final int contactSensitivity, final double sigma )
 	{
 		this.img1 = img1;
 		this.img2 = img2;
 		this.out = out;
 		this.threshold_C1 = threshold_C1;
 		this.threshold_C2 = threshold_C2;
-		this.contactSize = contactSize;
+		this.contactSensitivity = contactSensitivity;
 		this.sigma = sigma;
 		setNumThreads();
 	}
@@ -73,9 +73,9 @@ public class ContactImgGenerator< T extends RealType< T > & NativeType< T >> imp
 				return false;
 			}
 		}
-		if ( contactSize < 1 )
+		if ( contactSensitivity < 1 )
 		{
-			errorMessage = BASE_ERROR_MSG + "The contact size must be greater than 0 (was " + contactSize + ").";
+			errorMessage = BASE_ERROR_MSG + "The contact sensitivity must be greater than 0 (was " + contactSensitivity + ").";
 			return false;
 		}
 		if (sigma <= 0) 
@@ -94,7 +94,7 @@ public class ContactImgGenerator< T extends RealType< T > & NativeType< T >> imp
 		final double[] sigmas = Util.getArrayFromValue( sigma, img1.numDimensions() );
 		final ImgFactory< T > factory = Util.getArrayOrCellImgFactory( img1, Util.getTypeFromInterval( img1 ) );
 
-		final List< Shape > strel = StructuringElements.disk( contactSize, img1.numDimensions() );
+		final List< Shape > strel = StructuringElements.disk( contactSensitivity, img1.numDimensions() );
 
 		final Img< T > target1 = factory.create( img1, Util.getTypeFromInterval( img1 ) );
 		try

@@ -6,7 +6,7 @@ import static fiji.plugin.trackmate.gui.TrackMateWizard.BIG_FONT;
 import static fiji.plugin.trackmate.gui.TrackMateWizard.FONT;
 import static fr.pasteur.trackmate.CellContactDetectorFactory.KEY_CHANNEL_1;
 import static fr.pasteur.trackmate.CellContactDetectorFactory.KEY_CHANNEL_2;
-import static fr.pasteur.trackmate.CellContactDetectorFactory.KEY_CONTACT_SIZE;
+import static fr.pasteur.trackmate.CellContactDetectorFactory.KEY_CONTACT_SENSITIVITY;
 import static fr.pasteur.trackmate.CellContactDetectorFactory.KEY_SIGMA_FILTER;
 import static fr.pasteur.trackmate.CellContactDetectorFactory.KEY_THRESHOLD_1;
 import static fr.pasteur.trackmate.CellContactDetectorFactory.KEY_THRESHOLD_2;
@@ -63,7 +63,7 @@ public class CellContactConfigurationPanel extends ConfigurationPanel
 
 	private final JSlider sliderCh2;
 
-	private final JFormattedTextField jtfContactSize;
+	private final JFormattedTextField jtfContactSensitivity;
 
 	private final JFormattedTextField jtfSigma;
 
@@ -86,6 +86,9 @@ public class CellContactConfigurationPanel extends ConfigurationPanel
 		this.imp = imp == null ? NewImage.createByteImage( "Blank", 50, 50, 3, NewImage.FILL_BLACK ) : imp;
 		this.model = model;
 
+		@SuppressWarnings( { "rawtypes", "unchecked" } )
+		final Map< String, Object > defaultSettings = new CellContactDetectorFactory().getDefaultSettings();
+
 		final JLabel lblTitle = new JLabel( "Settings for detector:" );
 		lblTitle.setFont( FONT );
 
@@ -98,7 +101,7 @@ public class CellContactConfigurationPanel extends ConfigurationPanel
 
 		final JLabel lblInfo = new JLabel();
 		lblInfo.setFont( FONT.deriveFont( Font.ITALIC ) );
-		lblInfo.setText( CellContactDetectorFactory.INFO_TEXT );
+		lblInfo.setText( CellContactDetectorFactory.DOC );
 
 		sliderCh1 = new JSlider( 1, imp.getNChannels() );
 
@@ -133,24 +136,24 @@ public class CellContactConfigurationPanel extends ConfigurationPanel
 			}
 		} );
 
-		final JLabel lblContactSize = new JLabel( "Contact size:" );
+		final JLabel lblContactSize = new JLabel( "Contact sensitivity:" );
 		lblContactSize.setFont( FONT );
 
-		jtfContactSize = new JFormattedTextField( Integer.valueOf( 3 ) );
-		jtfContactSize.setHorizontalAlignment( SwingConstants.CENTER );
-		jtfContactSize.setFont( FONT );
+		jtfContactSensitivity = new JFormattedTextField( defaultSettings.get( KEY_CONTACT_SENSITIVITY ) );
+		jtfContactSensitivity.setHorizontalAlignment( SwingConstants.CENTER );
+		jtfContactSensitivity.setFont( FONT );
 
 		final JLabel lblFilterSigma = new JLabel( "Filter sigma:" );
 		lblFilterSigma.setFont( FONT );
 
-		jtfSigma = new JFormattedTextField( Double.valueOf( 1.0 ) );
+		jtfSigma = new JFormattedTextField( defaultSettings.get( KEY_SIGMA_FILTER ) );
 		jtfSigma.setHorizontalAlignment( SwingConstants.CENTER );
 		jtfSigma.setFont( FONT );
 
-		lblThreshold = new JLabel( "Threshold on spots:" );
+		lblThreshold = new JLabel( "Threshold on contact size:" );
 		lblThreshold.setFont( FONT );
 
-		jtfThreshold = new JFormattedTextField( Double.valueOf( 0. ) );
+		jtfThreshold = new JFormattedTextField( defaultSettings.get( KEY_THRESHOLD ) );
 		jtfThreshold.setHorizontalAlignment( SwingConstants.CENTER );
 		jtfThreshold.setFont( FONT );
 
@@ -199,6 +202,15 @@ public class CellContactConfigurationPanel extends ConfigurationPanel
 		jtfThresholdC2.setHorizontalAlignment( SwingConstants.CENTER );
 		jtfThresholdC2.setFont( FONT );
 
+		final JLabel lblPixels = new JLabel( "pixels" );
+		lblPixels.setFont( FONT );
+
+		final JLabel lblPixels_1 = new JLabel( "pixels" );
+		lblPixels_1.setFont( FONT );
+
+		final JLabel lblPixels_2 = new JLabel( "pixels" );
+		lblPixels_2.setFont( FONT );
+
 		final GroupLayout groupLayout = new GroupLayout( this );
 		groupLayout.setHorizontalGroup(
 				groupLayout.createParallelGroup( Alignment.LEADING )
@@ -241,12 +253,21 @@ public class CellContactConfigurationPanel extends ConfigurationPanel
 																		.addComponent( lblContactSize, Alignment.LEADING, GroupLayout.PREFERRED_SIZE, 101, GroupLayout.PREFERRED_SIZE ) )
 																.addPreferredGap( ComponentPlacement.RELATED )
 																.addGroup( groupLayout.createParallelGroup( Alignment.LEADING )
-																		.addComponent( jtfSigma )
-																		.addComponent( jtfContactSize, GroupLayout.DEFAULT_SIZE, 43, Short.MAX_VALUE )
-																		.addComponent( jtfThreshold, GroupLayout.PREFERRED_SIZE, 68, GroupLayout.PREFERRED_SIZE )
-																		.addComponent( jtfThresholdC1, GroupLayout.DEFAULT_SIZE, 60, Short.MAX_VALUE )
-																		.addComponent( jtfThresholdC2, GroupLayout.DEFAULT_SIZE, 60, Short.MAX_VALUE ) )
-																.addPreferredGap( ComponentPlacement.RELATED, 120, GroupLayout.PREFERRED_SIZE ) ) )
+																		.addGroup( groupLayout.createSequentialGroup()
+																				.addComponent( jtfThreshold, GroupLayout.PREFERRED_SIZE, 68, GroupLayout.PREFERRED_SIZE )
+																				.addPreferredGap( ComponentPlacement.RELATED )
+																				.addComponent( lblPixels ) )
+																		.addGroup( groupLayout.createSequentialGroup()
+																				.addGroup( groupLayout.createParallelGroup( Alignment.TRAILING, false )
+																						.addComponent( jtfThresholdC1, Alignment.LEADING )
+																						.addComponent( jtfThresholdC2, Alignment.LEADING )
+																						.addComponent( jtfContactSensitivity, Alignment.LEADING )
+																						.addComponent( jtfSigma, Alignment.LEADING, 68, 68, Short.MAX_VALUE ) )
+																				.addPreferredGap( ComponentPlacement.RELATED )
+																				.addGroup( groupLayout.createParallelGroup( Alignment.LEADING )
+																						.addComponent( lblPixels_2 )
+																						.addComponent( lblPixels_1 ) ) ) )
+																.addPreferredGap( ComponentPlacement.RELATED, 67, Short.MAX_VALUE ) ) )
 												.addContainerGap() ) ) )
 				);
 		groupLayout.setVerticalGroup(
@@ -257,7 +278,7 @@ public class CellContactConfigurationPanel extends ConfigurationPanel
 								.addPreferredGap( ComponentPlacement.RELATED )
 								.addComponent( lblDetectorName, GroupLayout.PREFERRED_SIZE, 30, GroupLayout.PREFERRED_SIZE )
 								.addPreferredGap( ComponentPlacement.RELATED )
-								.addComponent( lblInfo, GroupLayout.PREFERRED_SIZE, 96, GroupLayout.PREFERRED_SIZE )
+								.addComponent( lblInfo, GroupLayout.DEFAULT_SIZE, 96, Short.MAX_VALUE )
 								.addPreferredGap( ComponentPlacement.RELATED )
 								.addGroup( groupLayout.createParallelGroup( Alignment.LEADING, false )
 										.addComponent( sliderCh1, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE )
@@ -279,20 +300,23 @@ public class CellContactConfigurationPanel extends ConfigurationPanel
 								.addPreferredGap( ComponentPlacement.RELATED )
 								.addGroup( groupLayout.createParallelGroup( Alignment.BASELINE )
 										.addComponent( lblContactSize )
-										.addComponent( jtfContactSize, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE ) )
+										.addComponent( jtfContactSensitivity, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE )
+										.addComponent( lblPixels_1 ) )
 								.addPreferredGap( ComponentPlacement.UNRELATED )
 								.addGroup( groupLayout.createParallelGroup( Alignment.BASELINE )
 										.addComponent( lblFilterSigma )
-										.addComponent( jtfSigma, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE ) )
+										.addComponent( jtfSigma, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE )
+										.addComponent( lblPixels_2 ) )
 								.addPreferredGap( ComponentPlacement.UNRELATED )
 								.addGroup( groupLayout.createParallelGroup( Alignment.BASELINE )
 										.addComponent( lblThreshold )
-										.addComponent( jtfThreshold, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE ) )
+										.addComponent( jtfThreshold, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE )
+										.addComponent( lblPixels ) )
 								.addGap( 18 )
 								.addGroup( groupLayout.createParallelGroup( Alignment.BASELINE )
 										.addComponent( btnPreview )
 										.addComponent( labelLogger, GroupLayout.PREFERRED_SIZE, 29, GroupLayout.PREFERRED_SIZE ) )
-								.addContainerGap( 87, Short.MAX_VALUE ) )
+								.addGap( 93 ) )
 				);
 		setLayout( groupLayout );
 	}
@@ -350,7 +374,7 @@ public class CellContactConfigurationPanel extends ConfigurationPanel
 		jtfCh1.setText( "" + sliderCh1.getValue() );
 		jtfCh2.setText( "" + sliderCh2.getValue() );
 
-		jtfContactSize.setValue( settings.get( KEY_CONTACT_SIZE ) );
+		jtfContactSensitivity.setValue( settings.get( KEY_CONTACT_SENSITIVITY ) );
 		jtfSigma.setValue( settings.get( KEY_SIGMA_FILTER ) );
 		jtfThreshold.setValue( settings.get( KEY_THRESHOLD ) );
 	}
@@ -363,7 +387,7 @@ public class CellContactConfigurationPanel extends ConfigurationPanel
 		final int channel2 = sliderCh2.getValue();
 		try
 		{
-			jtfContactSize.commitEdit();
+			jtfContactSensitivity.commitEdit();
 			jtfSigma.commitEdit();
 			jtfThreshold.commitEdit();
 			jtfThresholdC1.commitEdit();
@@ -374,7 +398,7 @@ public class CellContactConfigurationPanel extends ConfigurationPanel
 			e.printStackTrace();
 		}
 
-		final int contactSize = ( Integer ) jtfContactSize.getValue();
+		final int contactSensitivity = ( Integer ) jtfContactSensitivity.getValue();
 		final double sigma = ( Double ) jtfSigma.getValue();
 		final double threshold_C1 = ( Double ) jtfThresholdC1.getValue();
 		final double threshold_C2 = ( Double ) jtfThresholdC2.getValue();
@@ -382,7 +406,7 @@ public class CellContactConfigurationPanel extends ConfigurationPanel
 
 		settings.put( KEY_CHANNEL_1, channel1 );
 		settings.put( KEY_CHANNEL_2, channel2 );
-		settings.put( KEY_CONTACT_SIZE, contactSize );
+		settings.put( KEY_CONTACT_SENSITIVITY, contactSensitivity );
 		settings.put( KEY_SIGMA_FILTER, sigma );
 		settings.put( KEY_THRESHOLD, threshold );
 		settings.put( KEY_THRESHOLD_1, threshold_C1 );

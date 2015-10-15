@@ -2,7 +2,7 @@ package fr.pasteur;
 
 import static fr.pasteur.trackmate.CellContactDetectorFactory.KEY_CHANNEL_1;
 import static fr.pasteur.trackmate.CellContactDetectorFactory.KEY_CHANNEL_2;
-import static fr.pasteur.trackmate.CellContactDetectorFactory.KEY_CONTACT_SIZE;
+import static fr.pasteur.trackmate.CellContactDetectorFactory.KEY_CONTACT_SENSITIVITY;
 import static fr.pasteur.trackmate.CellContactDetectorFactory.KEY_SIGMA_FILTER;
 import static fr.pasteur.trackmate.CellContactDetectorFactory.KEY_THRESHOLD_1;
 import fiji.plugin.trackmate.gui.GuiUtils;
@@ -94,7 +94,7 @@ public class CCCT_< T extends RealType< T > & NativeType< T >> implements PlugIn
 		// In ImgLib2, dimensions are 0-based.
 		final int channel1 = ( Integer ) settings.get( KEY_CHANNEL_1 ) - 1;
 		final int channel2 = ( Integer ) settings.get( KEY_CHANNEL_2 ) - 1;
-		final int contactSize = ( Integer ) settings.get( KEY_CONTACT_SIZE );
+		final int contactSensitivity = ( Integer ) settings.get( KEY_CONTACT_SENSITIVITY );
 		final double sigma = ( Double ) settings.get( KEY_SIGMA_FILTER );
 		final double thresholdC1 = ( Double ) settings.get( KEY_THRESHOLD_1 );
 		final double thresholdC2 = ( Double ) settings.get( KEY_THRESHOLD_1 );
@@ -145,7 +145,7 @@ public class CCCT_< T extends RealType< T > & NativeType< T >> implements PlugIn
 									Views.hyperSlice( im1, td, frame ),
 									Views.hyperSlice( im2, td, frame ),
 									Views.hyperSlice( out, out.numDimensions() - 1, frame ),
-									thresholdC1, thresholdC2, contactSize, sigma );
+									thresholdC1, thresholdC2, contactSensitivity, sigma );
 
 							if ( !algo.checkInput() || !algo.process() )
 							{

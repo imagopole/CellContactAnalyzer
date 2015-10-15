@@ -31,19 +31,39 @@ import fiji.plugin.trackmate.Settings;
 import fiji.plugin.trackmate.detection.SpotDetectorFactory;
 import fiji.plugin.trackmate.gui.ConfigurationPanel;
 import fiji.plugin.trackmate.util.TMUtils;
+import fr.pasteur.CCCT_;
 
 @SuppressWarnings( "deprecation" )
 @Plugin( type = SpotDetectorFactory.class )
 public class CellContactDetectorFactory< T extends RealType< T > & NativeType< T >> implements SpotDetectorFactory< T >
 {
 
-	private static final String PLUGIN_VERSION = "0.0.2-SNAPSHOT";
+	static final String DOC = "<html>"
+			+ "Version " + CCCT_.PLUGIN_VERSION
+			+ "<html>";
 
-	static final String INFO_TEXT = "<html>"
+	public static final String INFO_TEXT = "<html>"
 			+ "This detector detects cell/cell contacts for cells of two different "
-			+ "species imaged in two different channels. "
+			+ "species imaged in two different channels. The two channels must be "
+			+ "present in the image."
 			+ "<p> "
-			+ "Version " + PLUGIN_VERSION
+			+ "The two thresholds for each channel should be set just above the "
+			+ "background. Clicking on the button gives an automatic estimate of "
+			+ "the threshold using Otsu method. "
+			+ "<p>"
+			+ "The <tt>Contact sensitivity</tt> defines by how much two objects "
+			+ "can be separated to create a contact. The larger, the more sensitive. "
+			+ "<p>"
+			+ "The <tt>Filter sigma</tt> defines the sigma of the gaussian "
+			+ "filter applied to "
+			+ "both images prior to detection. "
+			+ "<p>"
+			+ "The <tt>Threshold on contact size</tt> sets the minimal "
+			+ "size a contact must have "
+			+ "to be accounted for. "
+			+ "<p>"
+			+ "Jean-Yves Tinevez - 2015 <br/>"
+			+ "Version " + CCCT_.PLUGIN_VERSION
 			+ "</html>";
 
 	private static final String KEY = "CELL_CONTACT_DETECTOR";
@@ -68,7 +88,7 @@ public class CellContactDetectorFactory< T extends RealType< T > & NativeType< T
 	 */
 	public static final String KEY_CHANNEL_2 = "CHANNEL_2";
 
-	public static final String KEY_CONTACT_SIZE = "CONTACT_SIZE";
+	public static final String KEY_CONTACT_SENSITIVITY = "CONTACT_SENSITIVITY";
 
 	public static final String KEY_SIGMA_FILTER = "SIGMA_FILTER";
 
@@ -112,7 +132,7 @@ public class CellContactDetectorFactory< T extends RealType< T > & NativeType< T
 		// In ImgLib2, dimensions are 0-based.
 		final int channel1 = ( Integer ) settings.get( KEY_CHANNEL_1 ) - 1;
 		final int channel2 = ( Integer ) settings.get( KEY_CHANNEL_2 ) - 1;
-		final int contactSize = ( Integer ) settings.get( KEY_CONTACT_SIZE );
+		final int contactSize = ( Integer ) settings.get( KEY_CONTACT_SENSITIVITY );
 		final double sigma = ( Double ) settings.get( KEY_SIGMA_FILTER );
 		final double[] calibration = TMUtils.getSpatialCalibration( img );
 
@@ -188,7 +208,7 @@ public class CellContactDetectorFactory< T extends RealType< T > & NativeType< T
 	public boolean marshall( final Map< String, Object > settings, final Element element )
 	{
 		final StringBuilder errorHolder = new StringBuilder();
-		final List< String > intKeys = Arrays.asList( new String[] { KEY_CHANNEL_1, KEY_CHANNEL_2, KEY_CONTACT_SIZE, KEY_TARGET_CHANNEL } );
+		final List< String > intKeys = Arrays.asList( new String[] { KEY_CHANNEL_1, KEY_CHANNEL_2, KEY_CONTACT_SENSITIVITY, KEY_TARGET_CHANNEL } );
 		boolean ok = true;
 		for ( final String key : intKeys )
 		{
@@ -218,7 +238,7 @@ public class CellContactDetectorFactory< T extends RealType< T > & NativeType< T
 		ok = ok & readIntegerAttribute( element, settings, KEY_CHANNEL_1, errorHolder );
 		ok = ok & readIntegerAttribute( element, settings, KEY_CHANNEL_2, errorHolder );
 		ok = ok & readIntegerAttribute( element, settings, KEY_TARGET_CHANNEL, errorHolder );
-		ok = ok & readIntegerAttribute( element, settings, KEY_CONTACT_SIZE, errorHolder );
+		ok = ok & readIntegerAttribute( element, settings, KEY_CONTACT_SENSITIVITY, errorHolder );
 		ok = ok & readDoubleAttribute( element, settings, KEY_SIGMA_FILTER, errorHolder );
 		ok = ok & readDoubleAttribute( element, settings, KEY_THRESHOLD, errorHolder );
 		ok = ok & readDoubleAttribute( element, settings, KEY_THRESHOLD_1, errorHolder );
@@ -237,9 +257,9 @@ public class CellContactDetectorFactory< T extends RealType< T > & NativeType< T
 		final Map< String, Object > settings = new HashMap< String, Object >();
 		settings.put( KEY_CHANNEL_1, Integer.valueOf( 2 ) );
 		settings.put( KEY_CHANNEL_2, Integer.valueOf( 3 ) );
-		settings.put( KEY_CONTACT_SIZE, Integer.valueOf( 3 ) );
+		settings.put( KEY_CONTACT_SENSITIVITY, Integer.valueOf( 3 ) );
 		settings.put( KEY_SIGMA_FILTER, Double.valueOf( 1. ) );
-		settings.put( KEY_THRESHOLD, Double.valueOf( 0.01 ) );
+		settings.put( KEY_THRESHOLD, Double.valueOf( 5. ) );
 		settings.put( KEY_THRESHOLD_1, Double.valueOf( 200. ) );
 		settings.put( KEY_THRESHOLD_2, Double.valueOf( 200. ) );
 		settings.put( KEY_TARGET_CHANNEL, Integer.valueOf( 1 ) ); // dummy
@@ -254,7 +274,7 @@ public class CellContactDetectorFactory< T extends RealType< T > & NativeType< T
 		ok = ok & checkParameter( settings, KEY_CHANNEL_1, Integer.class, errorHolder );
 		ok = ok & checkParameter( settings, KEY_CHANNEL_2, Integer.class, errorHolder );
 		ok = ok & checkParameter( settings, KEY_TARGET_CHANNEL, Integer.class, errorHolder );
-		ok = ok & checkParameter( settings, KEY_CONTACT_SIZE, Integer.class, errorHolder );
+		ok = ok & checkParameter( settings, KEY_CONTACT_SENSITIVITY, Integer.class, errorHolder );
 		ok = ok & checkParameter( settings, KEY_SIGMA_FILTER, Double.class, errorHolder );
 		ok = ok & checkParameter( settings, KEY_THRESHOLD, Double.class, errorHolder );
 		ok = ok & checkParameter( settings, KEY_THRESHOLD_1, Double.class, errorHolder );
@@ -263,7 +283,7 @@ public class CellContactDetectorFactory< T extends RealType< T > & NativeType< T
 		mandatoryKeys.add( KEY_CHANNEL_1 );
 		mandatoryKeys.add( KEY_CHANNEL_2 );
 		mandatoryKeys.add( KEY_TARGET_CHANNEL );
-		mandatoryKeys.add( KEY_CONTACT_SIZE );
+		mandatoryKeys.add( KEY_CONTACT_SENSITIVITY );
 		mandatoryKeys.add( KEY_SIGMA_FILTER );
 		mandatoryKeys.add( KEY_THRESHOLD );
 		mandatoryKeys.add( KEY_THRESHOLD_1 );
