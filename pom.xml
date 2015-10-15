@@ -5,13 +5,13 @@
 	<parent>
 		<groupId>sc.fiji</groupId>
 		<artifactId>pom-fiji</artifactId>
-		<version>11.0.0</version>
+		<version>15.6.0</version>
 		<relativePath />
 	</parent>
 
 	<artifactId>CellContactAnalyzer_</artifactId>
-	<version>0.0.2-SNAPSHOT</version>
-	<name>plugins/CellContactAnalyzer_.jar</name>
+	<version>0.0.2</version>
+  <name>plugins/CellContactAnalyzer_.jar</name>
 	<description />
 
 	<properties>
