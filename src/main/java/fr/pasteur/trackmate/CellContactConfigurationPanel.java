@@ -469,4 +469,8 @@ public class CellContactConfigurationPanel extends ConfigurationPanel
 			};
 		}.start();
 	}
+
+	@Override
+	public void clean()
+	{}
 }

@@ -1,6 +1,7 @@
 package fr.pasteur.trackmate;
 
 import fiji.plugin.trackmate.TrackMatePlugIn_;
+import ij.CompositeImage;
 import ij.ImageJ;
 import ij.ImagePlus;
 
@@ -11,7 +12,7 @@ public class CellContactTest
 	{
 		ImageJ.main( args );
 		final String file = "/Users/tinevez/Projects/AMikhailova/Data/150823 SiT+SAg_1.tif";
-		final ImagePlus imp = new ImagePlus( file );
+		final CompositeImage imp = new CompositeImage( new ImagePlus( file ) );
 		imp.setOpenAsHyperStack( true );
 		imp.show();
 
