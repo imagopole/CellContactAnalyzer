@@ -31,7 +31,7 @@ fprintf('Found %d frames in source image.\n', n_frames)
 
 fprintf('Loading Calcium XML file... ')
 
-tracks_calcium = trackMateGetFrom( file_calcium, 'Tracks', ...
+[ tracks_calcium, tracks_calcium_names ] = trackMateGetFrom( file_calcium, 'Tracks', ...
     { 'POSITION_X', 'POSITION_Y', 'FRAME', 'MEAN_INTENSITY' } );
 
 fprintf(' Done.\n')
@@ -40,6 +40,7 @@ fprintf(' Done.\n')
 
 n_edges_tracks_calcium = cellfun(@(x) size(x, 1), tracks_calcium );
 tracks_calcium( n_edges_tracks_calcium < min_n_edges ) = [];
+tracks_calcium_names( n_edges_tracks_calcium < min_n_edges ) = [];
 
 fprintf('Retaining %d tracks out of %d.\n', numel(tracks_calcium), numel(n_edges_tracks_calcium) )
 
@@ -48,7 +49,7 @@ fprintf('Retaining %d tracks out of %d.\n', numel(tracks_calcium), numel(n_edges
 fprintf('Loading Contact XML file... ')
 
 
-tracks_contacts = trackMateGetFrom( file_contacts, 'Tracks', ...
+[ tracks_contacts, tracks_contacts_names ] = trackMateGetFrom( file_contacts, 'Tracks', ...
     { 'POSITION_X', 'POSITION_Y', 'FRAME', 'QUALITY' } );
 
 fprintf(' Done.\n')
@@ -57,6 +58,7 @@ fprintf(' Done.\n')
 
 n_edges_tracks_contacts = cellfun(@(x) size(x, 1), tracks_contacts );
 tracks_contacts( n_edges_tracks_contacts < min_n_edges ) = [];
+tracks_contacts_names( n_edges_tracks_contacts < min_n_edges ) = [];
 
 fprintf('Retaining %d tracks out of %d.\n', numel(tracks_contacts), numel(n_edges_tracks_contacts) )
 
@@ -68,7 +70,7 @@ ntcontacts = numel(tracks_contacts);
 matches = [];
 
 if do_plot
-    colors = hsv( ntcontacts );
+    colors = 0.8 * hsv( ntcontacts );
     hf1 = figure('Position', [680   200   900   750]);
     hold on
 end
@@ -141,6 +143,14 @@ for i = 1 : ntcontacts
             'HorizontalAlignment', 'center', ...
             'Color', colors(i, :), ...
             'BackgroundColor', 'w')
+        
+        text( ux , uy, ...
+            { [' Contact: ' tracks_contacts_names{ i } ]
+            [' Calcium: '  tracks_calcium_names{ target_id } ] }, ...        
+            'HorizontalAlignment', 'left', ...
+            'VerticalAlignment', 'bottom', ...
+            'Color', colors(i, :), ...
+            'Interpreter', 'None')
 
         
         plot( pos_1(:,1), pos_1(:,2), ...
@@ -163,6 +173,7 @@ if do_plot
         'XAxisLocation', 'top')
     axis equal
 end
+
 
 %% Plot kymographs.
 
