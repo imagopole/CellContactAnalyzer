@@ -42,7 +42,7 @@ import net.imglib2.view.Views;
 public class CCCT_< T extends RealType< T > & NativeType< T >> implements PlugIn, CCCTProcessor, MultiThreaded
 {
 
-	public static final String PLUGIN_VERSION = "0.0.4-SNAPSHOT";
+	public static final String PLUGIN_VERSION = "0.0.4";
 
 	public static final String PLUGIN_NAME = "CCCT";
 
