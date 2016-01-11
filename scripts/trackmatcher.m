@@ -21,6 +21,9 @@ max_track_dist = 20; % physical units
 % Plot tracks?
 do_plot = true;
 
+% Load colormap
+load mycmap
+
 %% Get calibration.
 
 cal = trackMateGetCalibration(file_calcium);
@@ -225,15 +228,15 @@ for k = 1 : n_matches
 
 end
 
-cmap = [ 
-    repmat( [ 0.2 0.6 0.2 ], [ 32 1 ]);
-    repmat( [ 0.2 0.2 0.6 ], [ 32 1 ]);
-    0 0 0;
-    hot(64) ];
+% cmap = [ 
+%     repmat( [ 0.2 0.6 0.2 ], [ 32 1 ]);
+%     repmat( [ 0.2 0.2 0.6 ], [ 32 1 ]);
+%     0 0 0;
+%     hot(64) ];
 
 
 hf2 = figure('Position', [ 680    50   700   800 ] );
-colormap(cmap)
+colormap(cmap4)
 imagesc(kymograph)
 box off 
 
