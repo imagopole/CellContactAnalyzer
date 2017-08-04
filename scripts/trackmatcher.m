@@ -6,73 +6,72 @@ clear
 clc
 
 % Calcium TrackMate XML file.
-file_calcium = '/Users/tinevez/Projects/AMikhailova/Data/Synch/SiC + SAg2.xml';
+fileCalcium = '/Users/tinevez/Google Drive/Projects/Contacts/raw data/2015-09-17/Trackmate files/SiC - SAg_1_20_Calcium.xml';
 
 % Contact TrackMate XML file.
-file_contacts = '/Users/tinevez/Projects/AMikhailova/Data/Synch/SiC + SAg2 contact tracker.xml';
+fileContacts = '/Users/tinevez/Google Drive/Projects/Contacts/raw data/2015-09-17/Trackmate files/SiC - SAg_1_20_Contacts.xml';
 
 % Minimal number of edges in contact tracks below which tracks are not
 % considered.
-min_n_edges = 60;
+minNEdges = 10;
 
 % Maximal mean distance between two tracks to accept a match.
-max_track_dist = 20; % physical units
+maxTrackDist = 20; % physical units
 
 % Plot tracks?
-do_plot = true;
+doPlot = true;
 
 % Load colormap
 load mycmap
 
 %% Get calibration.
 
-cal = trackMateGetCalibration(file_calcium);
-n_frames = cal.t.size;
-fprintf('Found %d frames in source image.\n', n_frames)
+cal = trackmateImageCalibration(fileCalcium);
+nFrames = cal.t.size;
+fprintf('Found %d frames in source image.\n', nFrames)
 
 %% Import calcium tracks.
 
-fprintf('Loading Calcium XML file... ')
+fprintf('Loading Calcium XML file...\n')
 
-[ tracks_calcium, tracks_calcium_names ] = trackMateGetFrom( file_calcium, 'Tracks', ...
+[ tracksCalcium, tracksCalciumNames ] = loadtracks( fileCalcium, ...
     { 'POSITION_X', 'POSITION_Y', 'FRAME', 'MEAN_INTENSITY' } );
 
-fprintf(' Done.\n')
+fprintf('Done.\n')
 
 %% Filter calcium tracks.
 
-n_edges_tracks_calcium = cellfun(@(x) size(x, 1), tracks_calcium );
-tracks_calcium( n_edges_tracks_calcium < min_n_edges ) = [];
-tracks_calcium_names( n_edges_tracks_calcium < min_n_edges ) = [];
+nEdgesTracksCalcium = cellfun(@(x) size(x, 1), tracksCalcium );
+tracksCalcium( nEdgesTracksCalcium < minNEdges ) = [];
+tracksCalciumNames( nEdgesTracksCalcium < minNEdges ) = [];
 
-fprintf('Retaining %d tracks out of %d.\n', numel(tracks_calcium), numel(n_edges_tracks_calcium) )
+fprintf('Retaining %d tracks out of %d.\n', numel( tracksCalcium ), numel( nEdgesTracksCalcium ) )
 
 %% Import contact tracks.
 
-fprintf('Loading Contact XML file... ')
+fprintf('Loading Contact XML file...\n')
 
-
-[ tracks_contacts, tracks_contacts_names ] = trackMateGetFrom( file_contacts, 'Tracks', ...
+[ tracksContacts, tracksContactsNames ] = loadtracks( fileContacts, ...
     { 'POSITION_X', 'POSITION_Y', 'FRAME', 'QUALITY' } );
 
-fprintf(' Done.\n')
+fprintf('Done.\n')
 
 %% Filter contact tracks.
 
-n_edges_tracks_contacts = cellfun(@(x) size(x, 1), tracks_contacts );
-tracks_contacts( n_edges_tracks_contacts < min_n_edges ) = [];
-tracks_contacts_names( n_edges_tracks_contacts < min_n_edges ) = [];
+nEdgesTracksContacts = cellfun(@(x) size(x, 1), tracksContacts );
+tracksContacts( nEdgesTracksContacts < minNEdges ) = [];
+tracksContactsNames( nEdgesTracksContacts < minNEdges ) = [];
 
-fprintf('Retaining %d tracks out of %d.\n', numel(tracks_contacts), numel(n_edges_tracks_contacts) )
+fprintf('Retaining %d tracks out of %d.\n', numel( tracksContacts ), numel( nEdgesTracksContacts ) )
 
 %% Match.
 fprintf('Matching contact tracks to calcium tracks.\n')
 
-ntcalcium = numel(tracks_calcium);
-ntcontacts = numel(tracks_contacts);
+ntcalcium = numel(tracksCalcium);
+ntcontacts = numel(tracksContacts);
 matches = [];
 
-if do_plot
+if doPlot
     colors = 0.8 * hsv( ntcontacts );
     hf1 = figure('Position', [680   200   900   750]);
     hold on
@@ -82,40 +81,40 @@ for i = 1 : ntcontacts
 
     fprintf('\nContact track %d of %d.\n', i, ntcontacts )
     
-    track_2 = tracks_contacts{ i };
-    frames_2 = track_2(:, 3) + 1;
-    pos_2 = track_2(:, 1 : 2);
+    track_2 = tracksContacts{ i };
+    frames_2 = track_2.FRAME + 1;
+    pos_2 = [ track_2.POSITION_X track_2.POSITION_Y ];
     
-    dpos2 = NaN(n_frames, 2);
+    dpos2 = NaN(nFrames, 2);
     dpos2( frames_2, : ) = pos_2;
     
-    dist_mean = NaN(ntcalcium, 1);
-    dist_std = NaN(ntcalcium, 1);
-    dist_n = NaN(ntcalcium, 1);
+    distMean = NaN(ntcalcium, 1);
+    distStd = NaN(ntcalcium, 1);
+    distN = NaN(ntcalcium, 1);
     
     for j = 1 : ntcalcium
         
-        track_1 = tracks_calcium{ j };
-        frames_1 = track_1(:, 3) + 1;
-        pos_1 = track_1(:, 1 : 2);
+        track_1 = tracksCalcium{ j };
+        frames_1 = track_1.FRAME + 1;
+        pos_1 = [ track_1.POSITION_X track_1.POSITION_Y ];
         
-        dpos1 = NaN(n_frames, 2);
+        dpos1 = NaN(nFrames, 2);
         dpos1( frames_1, : ) = pos_1;
         
         delta = dpos2 - dpos1;
         dist = sqrt( sum(delta .* delta, 2) );
-        dist_mean(j) = nanmean(dist);
-        dist_std(j) = nanstd(dist);
-        dist_n(j) = numel( dist( ~isnan(dist) ) );
+        distMean(j) = nanmean(dist);
+        distStd(j) = nanstd(dist);
+        distN(j) = numel( dist( ~isnan(dist) ) );
         
     end
     
-    [ val, target_id ] = min( dist_mean );
-    fprintf('Matched contact track #%d with calcium track #%d,\nwith a distance of %.1f ? %.1f %s calculated over %d spots.\n', ...
-        i, target_id, val, dist_std(target_id), cal.x.units, dist_n(target_id) )
+    [ val, target_id ] = min( distMean );
+    fprintf('Matched contact track #%d with calcium track #%d,\nwith a distance of %.1f +/- %.1f %s calculated over %d spots.\n', ...
+        i, target_id, val, distStd(target_id), cal.x.units, distN(target_id) )
     
     
-    if val > max_track_dist
+    if val > maxTrackDist
         fprintf('Mean distance value is above max tolerance distance. Match rejected.\n')
         continue
     end
@@ -124,15 +123,15 @@ for i = 1 : ntcontacts
         matches ;
         i, target_id]; %#ok<AGROW>
     
-    if do_plot
+    if doPlot
         plot( pos_2(:,1), pos_2(:,2), ...
             'DisplayName', [ 'Contact #' num2str(i) ], ...
             'Color', colors(i, :), ...
             'Marker', 's', ...
             'MarkerFaceColor',  colors(i, :))
         
-        track_1 = tracks_calcium{ target_id };
-        pos_1 = track_1(:, 1 : 2);
+        track_1 = tracksCalcium{ target_id };
+        pos_1 = [ track_1.POSITION_X track_1.POSITION_Y ];
         
         lx = min(  [ pos_2(:,1) ; pos_1(:,1) ] );
         ux = max(  [ pos_2(:,1) ; pos_1(:,1) ] );
@@ -148,8 +147,8 @@ for i = 1 : ntcontacts
             'BackgroundColor', 'w')
         
         text( ux , uy, ...
-            { [' Contact: ' tracks_contacts_names{ i } ]
-            [' Calcium: '  tracks_calcium_names{ target_id } ] }, ...        
+            { [' Contact: ' tracksContactsNames{ i } ]
+            [' Calcium: '  tracksCalciumNames{ target_id } ] }, ...        
             'HorizontalAlignment', 'left', ...
             'VerticalAlignment', 'bottom', ...
             'Color', colors(i, :), ...
@@ -168,7 +167,7 @@ for i = 1 : ntcontacts
 end
 
 
-if do_plot
+if doPlot
     xlabel([ 'X (' cal.x.units ')' ] )
     ylabel([ 'Y (' cal.y.units ')' ] )
     set(gca, 'TickDir', 'out', ...
@@ -180,10 +179,10 @@ end
 
 %% Plot kymographs.
 
-n_matches = size(matches, 1);
-fprintf('\nFound %d matches out of %d contact tracks.\n', n_matches, ntcontacts)
+nMatches = size(matches, 1);
+fprintf('\nFound %d matches out of %d contact tracks.\n', nMatches, ntcontacts)
 
-kymograph = zeros( 2 * n_matches, n_frames );
+kymograph = zeros( 2 * nMatches, nFrames );
 
 % Look for min & max
 % min_int = Inf;
@@ -202,19 +201,19 @@ kymograph = zeros( 2 * n_matches, n_frames );
 figure
 hold on
 
-for k = 1 : n_matches
+for k = 1 : nMatches
    
     i = matches(k, 1);
     j = matches(k, 2);
     
-    track_2 = tracks_contacts{ i };
-    track_1 = tracks_calcium{ j };
+    track_2 = tracksContacts{ i };
+    track_1 = tracksCalcium{ j };
 
-    frames_quality = track_2(:,3) + 1;
-    quality = track_2(:,4);
+    frames_quality = track_2.FRAME + 1;
+    quality = track_2.QUALITY;
 
-    frames_intensity = track_1(:,3) + 1;
-    intensity_raw = track_1(:,4);
+    frames_intensity = track_1.FRAME + 1;
+    intensity_raw = track_1.MEAN_INTENSITY;
     
     % Normalize min/max.
     intensity = intensity_raw / median(intensity_raw);
@@ -240,8 +239,8 @@ colormap(cmap4)
 imagesc(kymograph)
 box off 
 
-for i = 1 : n_matches
-   line( [0 n_frames], 0.5 + 2*[ i i ], ...
+for i = 1 : nMatches
+   line( [0 nFrames], 0.5 + 2*[ i i ], ...
        'Color', 'w',...
        'LineWidth', 3)
     
@@ -249,8 +248,8 @@ end
 
 set(gca, ...
     'TickDir', 'out', ...
-    'YTick', 0.5 + 1 : 2 : 2 * n_matches, ...
-    'YTickLabel', 1 : n_matches, ...
+    'YTick', 0.5 + 1 : 2 : 2 * nMatches, ...
+    'YTickLabel', 1 : nMatches, ...
     'Position', [0.1300    0.1100    0.7    0.8150 ])
 xlabel('Time (frames)')
 ylabel('Track matches')
@@ -271,19 +270,19 @@ ax2 = axes(...
 ylim( ax2, ylim( ax1 ) );
 
 
-y2labels = cell( 2* n_matches, 1);
-for i = 1 : n_matches
+y2labels = cell( 2* nMatches, 1);
+for i = 1 : nMatches
     j = matches(i, 2);
-    y2labels{ 2 * i - 1 } = [' Contact: ' tracks_contacts_names{ i } ];
-    y2labels{ 2 * i  } = [' Calcium: '  tracks_calcium_names{ j } ];
+    y2labels{ 2 * i - 1 } = [' Contact: ' tracksContactsNames{ i } ];
+    y2labels{ 2 * i  } = [' Calcium: '  tracksCalciumNames{ j } ];
 end
 
 set(ax2, ...
     'TickDir', 'out', ...
-    'YTick', 1 : 2 * n_matches, ...
+    'YTick', 1 : 2 * nMatches, ...
     'YTickLabel', y2labels)
 
-[~, name] = fileparts(file_calcium);
+[~, name] = fileparts(fileCalcium);
 title(name, ...
     'Interpreter', 'None')
 
@@ -292,9 +291,9 @@ title(name, ...
 
 return
 
-save_name_tracks = [name '-tracks.pdf' ];
-save_name_matches = [name '-matches.pdf' ];
+saveNameTracks = [name '-tracks.pdf' ];
+saveNameMatches = [name '-matches.pdf' ];
 
-export_fig('-r600', save_name_tracks, hf1);
-export_fig('-r600', '-opengl', save_name_matches, hf2);
+export_fig('-r600', saveNameTracks, hf1);
+export_fig('-r600', '-opengl', saveNameMatches, hf2);
 
