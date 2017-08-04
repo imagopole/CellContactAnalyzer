@@ -11,9 +11,13 @@ fileCalcium = '/Users/tinevez/Google Drive/Projects/Contacts/raw data/2015-09-17
 % Contact TrackMate XML file.
 fileContacts = '/Users/tinevez/Google Drive/Projects/Contacts/raw data/2015-09-17/Trackmate files/SiC - SAg_1_20_Contacts.xml';
 
+% Minimal number of edges in calcium tracks below which tracks are not
+% considered.
+minNEdges = 60;
+
 % Minimal number of edges in contact tracks below which tracks are not
 % considered.
-minNEdges = 10;
+minNContactEdges = 5;
 
 % Maximal mean distance between two tracks to accept a match.
 maxTrackDist = 20; % physical units
@@ -59,49 +63,49 @@ fprintf('Done.\n')
 %% Filter contact tracks.
 
 nEdgesTracksContacts = cellfun(@(x) size(x, 1), tracksContacts );
-tracksContacts( nEdgesTracksContacts < minNEdges ) = [];
-tracksContactsNames( nEdgesTracksContacts < minNEdges ) = [];
+tracksContacts( nEdgesTracksContacts < minNContactEdges ) = [];
+tracksContactsNames( nEdgesTracksContacts < minNContactEdges ) = [];
 
 fprintf('Retaining %d tracks out of %d.\n', numel( tracksContacts ), numel( nEdgesTracksContacts ) )
 
 %% Match.
-fprintf('Matching contact tracks to calcium tracks.\n')
+fprintf('Matching calcium tracks to possible several contact tracks.\n')
 
-ntcalcium = numel(tracksCalcium);
-ntcontacts = numel(tracksContacts);
+ntCalcium = numel(tracksCalcium);
+ntContacts = numel(tracksContacts);
 matches = [];
 
 if doPlot
-    colors = 0.8 * hsv( ntcontacts );
+    colors = 0.8 * hsv( ntCalcium );
     hf1 = figure('Position', [680   200   900   750]);
     hold on
 end
 
-for i = 1 : ntcontacts 
+for i = 1 : ntCalcium 
 
-    fprintf('\nContact track %d of %d.\n', i, ntcontacts )
+    fprintf('\nCalcium track %d of %d.\n', i, ntCalcium )
     
-    track_2 = tracksContacts{ i };
-    frames_2 = track_2.FRAME + 1;
-    pos_2 = [ track_2.POSITION_X track_2.POSITION_Y ];
+    trackCalcium = tracksCalcium{ i };
+    framesCalcium = trackCalcium.FRAME + 1;
+    posCalcium = [ trackCalcium.POSITION_X trackCalcium.POSITION_Y ];
     
-    dpos2 = NaN(nFrames, 2);
-    dpos2( frames_2, : ) = pos_2;
+    dpos2 = NaN( nFrames, 2 );
+    dpos2( framesCalcium, : ) = posCalcium;
     
-    distMean = NaN(ntcalcium, 1);
-    distStd = NaN(ntcalcium, 1);
-    distN = NaN(ntcalcium, 1);
+    distMean    = NaN( ntContacts, 1);
+    distStd     = NaN( ntContacts, 1);
+    distN       = NaN( ntContacts, 1);
     
-    for j = 1 : ntcalcium
+    for j = 1 : ntContacts
         
-        track_1 = tracksCalcium{ j };
-        frames_1 = track_1.FRAME + 1;
-        pos_1 = [ track_1.POSITION_X track_1.POSITION_Y ];
+        trackContact = tracksContacts{ j };
+        framesContact = trackContact.FRAME + 1;
+        posContact = [ trackContact.POSITION_X trackContact.POSITION_Y ];
         
-        dpos1 = NaN(nFrames, 2);
-        dpos1( frames_1, : ) = pos_1;
+        dpos1 = NaN( nFrames, 2 );
+        dpos1( framesContact, : ) = posContact;
         
-        delta = dpos2 - dpos1;
+        delta = dpos1 - dpos2;
         dist = sqrt( sum(delta .* delta, 2) );
         distMean(j) = nanmean(dist);
         distStd(j) = nanstd(dist);
@@ -109,59 +113,66 @@ for i = 1 : ntcontacts
         
     end
     
-    [ val, target_id ] = min( distMean );
-    fprintf('Matched contact track #%d with calcium track #%d,\nwith a distance of %.1f +/- %.1f %s calculated over %d spots.\n', ...
-        i, target_id, val, distStd(target_id), cal.x.units, distN(target_id) )
+    closeContacts = find( distMean < maxTrackDist );
+    nCloseContacts = numel( closeContacts );
     
     
-    if val > maxTrackDist
-        fprintf('Mean distance value is above max tolerance distance. Match rejected.\n')
+    if nCloseContacts == 0
+        fprintf('Did not find a contact close to this calcium track.\n')
         continue
     end
+
+    fprintf('Found %d contact tracks that matches calcium track #%d:\n', ...
+        nCloseContacts, i )
     
-    matches = [
-        matches ;
-        i, target_id]; %#ok<AGROW>
+    for j = 1 : nCloseContacts
+        targetId = closeContacts(j);
+        fprintf('\tcontact #%d -> calcium #%d - dist %.1f +/- %.1f %s N = %d spots.\n', ...
+            targetId, i, distMean(targetId), distStd(targetId), cal.x.units, distN(targetId) )
+    end
     
     if doPlot
-        plot( pos_2(:,1), pos_2(:,2), ...
-            'DisplayName', [ 'Contact #' num2str(i) ], ...
+        
+        plot( posCalcium(:,1), posCalcium(:,2), ...
+            'DisplayName', [ 'Calcium #' num2str(i) ], ...
             'Color', colors(i, :), ...
             'Marker', 's', ...
             'MarkerFaceColor',  colors(i, :))
         
-        track_1 = tracksCalcium{ target_id };
-        pos_1 = [ track_1.POSITION_X track_1.POSITION_Y ];
+        lx = min( posCalcium(:,1) );
+        ux = max( posCalcium(:,1) );
+        ly = min( posCalcium(:,2) );
+        uy = max( posCalcium(:,2) );
         
-        lx = min(  [ pos_2(:,1) ; pos_1(:,1) ] );
-        ux = max(  [ pos_2(:,1) ; pos_1(:,1) ] );
-        ly = min(  [ pos_2(:,2) ; pos_1(:,2) ] );
-        uy = max(  [ pos_2(:,2) ; pos_1(:,2) ] );
+        for j = 1 : nCloseContacts
+            
+            targetId = closeContacts(j);
+            trackContact = tracksContacts{ targetId };
+            posContact = [ trackContact.POSITION_X trackContact.POSITION_Y ];
+            
+            plot( posContact(:,1), posContact(:,2), ...
+                'DisplayName', [ 'Contact #' num2str(target_id) ], ...
+                'Color', colors(i, :), ...
+                'Marker', 'o', ...
+                'MarkerFaceColor',  'w')
+                        
+            lx = min(  [ lx ; posContact(:,1) ] );
+            ux = max(  [ ux ; posContact(:,1) ] );
+            ly = min(  [ ly ; posContact(:,2) ] );
+            uy = max(  [ uy ; posContact(:,2) ] );
+            
+        end
+        
         rectangle('Position', [ lx ly (ux-lx) (uy-ly) ], ...
             'EdgeColor', colors(i, :))
-        
-        text( (ux+lx)/2, ly - 5, ...
-            num2str( size(matches, 1) ), ...
-            'HorizontalAlignment', 'center', ...
-            'Color', colors(i, :), ...
-            'BackgroundColor', 'w')
-        
+                
         text( ux , uy, ...
-            { [' Contact: ' tracksContactsNames{ i } ]
-            [' Calcium: '  tracksCalciumNames{ target_id } ] }, ...        
+            [' Calcium: '  tracksCalciumNames{ i } ], ...        
             'HorizontalAlignment', 'left', ...
             'VerticalAlignment', 'bottom', ...
             'Color', colors(i, :), ...
             'Interpreter', 'None')
 
-        
-        plot( pos_1(:,1), pos_1(:,2), ...
-            'DisplayName', [ 'Calcium #' num2str(target_id) ], ...
-            'Color', colors(i, :), ...
-            'Marker', 'o', ...
-            'MarkerFaceColor',  'w')
-        
-        
     end
 
 end
@@ -177,10 +188,12 @@ if doPlot
 end
 
 
+% TODO: make stats of how many contacts per Calcium tracks. 
+
 %% Plot kymographs.
 
 nMatches = size(matches, 1);
-fprintf('\nFound %d matches out of %d contact tracks.\n', nMatches, ntcontacts)
+fprintf('\nFound %d matches out of %d contact tracks.\n', nMatches, ntContacts)
 
 kymograph = zeros( 2 * nMatches, nFrames );
 
@@ -207,13 +220,13 @@ for k = 1 : nMatches
     j = matches(k, 2);
     
     track_2 = tracksContacts{ i };
-    track_1 = tracksCalcium{ j };
+    trackCalcium = tracksCalcium{ j };
 
     frames_quality = track_2.FRAME + 1;
     quality = track_2.QUALITY;
 
-    frames_intensity = track_1.FRAME + 1;
-    intensity_raw = track_1.MEAN_INTENSITY;
+    frames_intensity = trackCalcium.FRAME + 1;
+    intensity_raw = trackCalcium.MEAN_INTENSITY;
     
     % Normalize min/max.
     intensity = intensity_raw / median(intensity_raw);
