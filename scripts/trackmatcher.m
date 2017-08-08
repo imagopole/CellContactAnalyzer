@@ -6,10 +6,10 @@ clear
 clc
 
 % Calcium TrackMate XML file.
-fileCalcium = '/Users/tinevez/Google Drive/Projects/Contacts/raw data/2015-09-17/Trackmate files/SiC - SAg_1_20_Calcium.xml';
+fileCalcium = '/Users/tinevez/Google Drive/Projects/Contacts/raw data/2015-12-14/trackmate files/NE-SAg_1_20_Calcium.xml';
 
 % Contact TrackMate XML file.
-fileContacts = '/Users/tinevez/Google Drive/Projects/Contacts/raw data/2015-09-17/Trackmate files/SiC - SAg_1_20_Contacts.xml';
+fileContacts = '/Users/tinevez/Google Drive/Projects/Contacts/raw data/2015-12-14/trackmate files/NE-SAg_1_20_Contacts.xml';
 
 % Minimal number of edges in calcium tracks below which tracks are not
 % considered.
@@ -56,7 +56,7 @@ fprintf('Retaining %d tracks out of %d.\n', numel( tracksCalcium ), numel( nEdge
 fprintf('Loading Contact XML file...\n')
 
 [ tracksContacts, tracksContactsNames ] = loadtracks( fileContacts, ...
-    { 'POSITION_X', 'POSITION_Y', 'FRAME', 'QUALITY' } );
+    { 'POSITION_X', 'POSITION_Y', 'FRAME', 'QUALITY', 'RADIUS' } );
 
 fprintf('Done.\n')
 
@@ -81,6 +81,7 @@ if doPlot
     hold on
 end
 
+tcells = [];
 for i = 1 : ntCalcium 
 
     fprintf('\nCalcium track %d of %d.\n', i, ntCalcium )
@@ -99,7 +100,7 @@ for i = 1 : ntCalcium
     for j = 1 : ntContacts
         
         trackContact = tracksContacts{ j };
-        framesContact = trackContact.FRAME + 1;
+        framesContact = trackContact.FRAME + 1;        
         posContact = [ trackContact.POSITION_X trackContact.POSITION_Y ];
         
         dpos1 = NaN( nFrames, 2 );
@@ -125,11 +126,95 @@ for i = 1 : ntCalcium
     fprintf('Found %d contact tracks that matches calcium track #%d:\n', ...
         nCloseContacts, i )
     
+    % Possible split contact track in several segments.
+    
+    contacts = {};
     for j = 1 : nCloseContacts
+        
         targetId = closeContacts(j);
         fprintf('\tcontact #%d -> calcium #%d - dist %.1f +/- %.1f %s N = %d spots.\n', ...
             targetId, i, distMean(targetId), distStd(targetId), cal.x.units, distN(targetId) )
+        
+        trackContact = tracksContacts{ targetId };
+        posContact = [ trackContact.POSITION_X trackContact.POSITION_Y ];
+        framesContact = trackContact.FRAME + 1;
+        radiusContact = trackContact.RADIUS;
+        segmentBreaks = find ( diff(framesContact) > 1 );
+        nSegments = numel( segmentBreaks ) + 1;
+        fprintf( '\tfound %d segments in the contact track.\n', nSegments )
+        
+        segmentBreaks = [ 0 ; segmentBreaks ; numel( framesContact ) ]; %#ok<AGROW>
+        for k = 1 : nSegments
+            segmentStart = segmentBreaks( k ) + 1;
+            segmentStop = segmentBreaks( k + 1 );
+            t = framesContact( segmentStart : segmentStop );
+            xy = posContact( segmentStart : segmentStop, : );
+            r = radiusContact( segmentStart : segmentStop );
+            contact = [ t xy r ];
+            contacts = [
+                contacts
+                contact
+                ]; %#ok<AGROW>
+        end
     end
+    
+    nContacts = numel( contacts );
+    
+    % Check whether we have several simultaneous contacts for a single
+    % T-cell. In that case we reject it.
+    overlappingContacts = false;
+    for j = 1 : nContacts - 1
+        for k = j + 1 : nContacts
+            
+            t1 = contacts{j}(:,1);
+            t2 = contacts{k}(:,1);
+            if ~isempty( intersect( t1, t2 ) )
+                overlappingContacts = true;
+                break;
+            end
+            
+        end
+    end
+    if overlappingContacts
+         fprintf( '\tfound overlapping contacts for this cell. Skipping.\n')
+        continue
+    end
+    
+    % Prepare output structure.
+    
+    tcell = struct();
+    tcell.trackID = i;
+    tcell.trackName = tracksCalciumNames{ i };
+    tcell.pos = posCalcium;
+    tcell.t = framesCalcium;
+    tcell.intensity = trackCalcium.MEAN_INTENSITY;
+    tcell.nContacts = nContacts;
+    
+    nt = numel( tcell.t );
+    cPos = NaN( nt, 2 );
+    ct  = NaN( nt, 1);
+    cArea = NaN( nt, 1 );
+    
+    for j = 1 : nContacts
+        contact = contacts{ j };
+        t1 = contact( : , 1 );
+        pos1 = contact( : , 2 : 3  );
+        r1 = contact( : , 4 );
+        
+        [ ~, it, it1 ] = intersect( tcell.t, t1 );
+        ct( it ) = t1( it1 );
+        cPos( it, : ) = pos1( it1, : );
+        cArea( it ) = 2. * pi  .* r1( it1 ) .* r1( it1 );  
+    end
+    
+    tcell.ct = ct;
+    tcell.cArea = cArea;
+    tcell.cPos = cPos;
+    
+    tcells =  [
+        tcells
+        tcell
+        ]; %#ok<AGROW>
     
     if doPlot
         
@@ -137,6 +222,7 @@ for i = 1 : ntCalcium
             'DisplayName', [ 'Calcium #' num2str(i) ], ...
             'Color', colors(i, :), ...
             'Marker', 's', ...
+            'LineWidth', 2, ...
             'MarkerFaceColor',  colors(i, :))
         
         lx = min( posCalcium(:,1) );
@@ -144,22 +230,19 @@ for i = 1 : ntCalcium
         ly = min( posCalcium(:,2) );
         uy = max( posCalcium(:,2) );
         
-        for j = 1 : nCloseContacts
+        for j = 1 : nContacts
             
-            targetId = closeContacts(j);
-            trackContact = tracksContacts{ targetId };
-            posContact = [ trackContact.POSITION_X trackContact.POSITION_Y ];
-            
-            plot( posContact(:,1), posContact(:,2), ...
-                'DisplayName', [ 'Contact #' num2str(target_id) ], ...
+            contact = contacts{ j };
+            plot( contact(:,2), contact(:,3), ...
+                'DisplayName', [ 'Contact #' num2str(j) ], ...
                 'Color', colors(i, :), ...
                 'Marker', 'o', ...
                 'MarkerFaceColor',  'w')
-                        
-            lx = min(  [ lx ; posContact(:,1) ] );
-            ux = max(  [ ux ; posContact(:,1) ] );
-            ly = min(  [ ly ; posContact(:,2) ] );
-            uy = max(  [ uy ; posContact(:,2) ] );
+            
+            lx = min(  [ lx ; contact(:, 2) ] );
+            ux = max(  [ ux ; contact(:, 2) ] );
+            ly = min(  [ ly ; contact(:, 3) ] );
+            uy = max(  [ uy ; contact(:, 3) ] );
             
         end
         
