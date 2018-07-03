@@ -6,10 +6,10 @@ clear
 clc
 
 % Calcium TrackMate XML file.
-fileCalcium = '/Users/tinevez/Google Drive/Projects/Contacts/raw data/2015-12-14/trackmate files/NE-SAg_1_20_Calcium.xml';
+fileCalcium = '/Users/tinevez/Google Drive/Projects/Contacts/raw data/2016-01-21/Trackmate files/SiT+SAg_1_20_Calcium.xml';
 
 % Contact TrackMate XML file.
-fileContacts = '/Users/tinevez/Google Drive/Projects/Contacts/raw data/2015-12-14/trackmate files/NE-SAg_1_20_Contacts.xml';
+fileContacts = '/Users/tinevez/Google Drive/Projects/Contacts/raw data/2016-01-21/Trackmate files/SiT+SAg_1_20_Contacts.xml';
 
 % Minimal number of edges in calcium tracks below which tracks are not
 % considered.
@@ -25,8 +25,9 @@ maxTrackDist = 20; % physical units
 % Plot tracks?
 doPlot = true;
 
-% Load colormap
-load mycmap
+% Save results structure? If true, data will be saved in the same folder
+% that of the calcium file, with the same name, but with .mat as extension.
+doSave = true;
 
 %% Get calibration.
 
@@ -268,128 +269,20 @@ if doPlot
         'YDir', 'reverse', ...
         'XAxisLocation', 'top')
     axis equal
+    
+    [ pathstr, name, ~ ] = fileparts( fileCalcium );
+    figFilePath = fullfile( pathstr, [ name '.pdf' ] );
+    export_fig( '-r600', figFilePath )
+    fprintf( '\nFigure saved as %s\n', figFilePath )
 end
 
+%% Save.
 
-% TODO: make stats of how many contacts per Calcium tracks. 
-
-%% Plot kymographs.
-
-nMatches = size(matches, 1);
-fprintf('\nFound %d matches out of %d contact tracks.\n', nMatches, ntContacts)
-
-kymograph = zeros( 2 * nMatches, nFrames );
-
-% Look for min & max
-% min_int = Inf;
-% max_int = 0;
-
-% for k = 1 : n_matches
-%     
-%     j = matches(k, 2);
-%     track_1 = tracks_calcium{ j };
-%     
-%     intensity_raw = track_1(:,4);
-%     min_int = min( min_int, min(intensity_raw) );
-%     max_int = max( max_int, max(intensity_raw) );
-% end
-
-figure
-hold on
-
-for k = 1 : nMatches
-   
-    i = matches(k, 1);
-    j = matches(k, 2);
+if doSave
     
-    track_2 = tracksContacts{ i };
-    trackCalcium = tracksCalcium{ j };
-
-    frames_quality = track_2.FRAME + 1;
-    quality = track_2.QUALITY;
-
-    frames_intensity = trackCalcium.FRAME + 1;
-    intensity_raw = trackCalcium.MEAN_INTENSITY;
-    
-    % Normalize min/max.
-    intensity = intensity_raw / median(intensity_raw);
-%     intensity = ( intensity - min(intensity) ) ./ ( max(intensity) - min(intensity) );
-    
-    plot(frames_intensity, intensity)
-    
-    contact = -0.5 * (quality > 0.01) - 0.5 * (quality > 0.2);
-    kymograph( 2*k-1,   frames_quality ) = contact;
-    kymograph( 2*k,     frames_intensity ) = intensity;
-
-end
-
-% cmap = [ 
-%     repmat( [ 0.2 0.6 0.2 ], [ 32 1 ]);
-%     repmat( [ 0.2 0.2 0.6 ], [ 32 1 ]);
-%     0 0 0;
-%     hot(64) ];
-
-
-hf2 = figure('Position', [ 680    50   700   800 ] );
-colormap(cmap4)
-imagesc(kymograph)
-box off 
-
-for i = 1 : nMatches
-   line( [0 nFrames], 0.5 + 2*[ i i ], ...
-       'Color', 'w',...
-       'LineWidth', 3)
+    [ pathstr, name, ext ] = fileparts( fileCalcium );
+    targetMatFile = fullfile( pathstr, [ name '.mat' ] );
+    save(targetMatFile, 'tcells')
+    fprintf( '\nData saved as %s\n', targetMatFile )
     
 end
-
-set(gca, ...
-    'TickDir', 'out', ...
-    'YTick', 0.5 + 1 : 2 : 2 * nMatches, ...
-    'YTickLabel', 1 : nMatches, ...
-    'Position', [0.1300    0.1100    0.7    0.8150 ])
-xlabel('Time (frames)')
-ylabel('Track matches')
-
-% Add 2nd axis.
-ax1 = gca;
-ax2 = axes(...
-    'Units',get(ax1,'Units'), ...
-    'Position',get(ax1,'Position'), ...
-    'Parent',get(ax1,'Parent'), ...
-	'YAxisLocation','right', ...
-    'Color','none', ...
-    'XGrid','off', ...
-    'Xcolor', 'none', ...
-    'YGrid','off',...
-    'Box','off', ...
-    'TickLabelInterpreter','none');
-ylim( ax2, ylim( ax1 ) );
-
-
-y2labels = cell( 2* nMatches, 1);
-for i = 1 : nMatches
-    j = matches(i, 2);
-    y2labels{ 2 * i - 1 } = [' Contact: ' tracksContactsNames{ i } ];
-    y2labels{ 2 * i  } = [' Calcium: '  tracksCalciumNames{ j } ];
-end
-
-set(ax2, ...
-    'TickDir', 'out', ...
-    'YTick', 1 : 2 * nMatches, ...
-    'YTickLabel', y2labels)
-
-[~, name] = fileparts(fileCalcium);
-title(name, ...
-    'Interpreter', 'None')
-
-
-%% Save figures
-
-return
-
-saveNameTracks = [name '-tracks.pdf' ];
-saveNameMatches = [name '-matches.pdf' ];
-
-export_fig('-r600', saveNameTracks, hf1);
-export_fig('-r600', '-opengl', saveNameMatches, hf2);
-
